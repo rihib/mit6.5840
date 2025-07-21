@@ -51,7 +51,7 @@ Is there an alternative to threads?
     and eliminates thread costs (which can be substantial),
     but doesn't get multi-core speedup,
     and is painful to program.
-    
+
 Threading challenges:
   sharing data safely
     what if two threads do n = n + 1 at the same time?
@@ -245,7 +245,7 @@ Go example: kv.go on schedule page
     The server's Get() and Put() handlers
       Must lock, since RPC library creates a new goroutine for each request
       read args; modify reply
- 
+
 A few details:
   Binding: how does client know what server computer to talk to?
     For Go's RPC, server name/port is an argument to Dial
@@ -254,7 +254,7 @@ A few details:
     Go's RPC library can pass strings, arrays, objects, maps, &c
     Go passes pointers by copying the pointed-to data
     Cannot pass channels or functions
-    Marshals only exported fields (i.e., fields w/ CAPITAL letter) 
+    Marshals only exported fields (i.e., fields w/ CAPITAL letter)
 
 RPC problem: what to do about failures?
   e.g. lost packet, broken network, slow server, crashed server
@@ -303,6 +303,3 @@ Other common semantics: at-most-once
   Labs explore others way of implementing at-most-once
     No retry is too restrictive for replicated servers
     Like to retry at another replica if first replica fails
-    
-
-

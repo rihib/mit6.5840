@@ -159,7 +159,7 @@ MapReduce概要
     プログラマーはMapとReduce関数を定義するだけ
     しばしばかなりシンプルなシーケンシャルコード
   MRは分散のすべての側面を管理し、隠す！
-  
+
 MapReduceジョブの抽象的な視点 -- 単語数
   Input1 -> Map -> a,1 b,1
   Input2 -> Map ->     b,1

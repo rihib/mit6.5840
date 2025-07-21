@@ -159,7 +159,7 @@ MapReduce overview
     programmer just defines Map and Reduce functions
     often fairly simple sequential code
   MR manages, and hides, all aspects of distribution!
-  
+
 Abstract view of a MapReduce job -- word count
   Input1 -> Map -> a,1 b,1
   Input2 -> Map ->     b,1
