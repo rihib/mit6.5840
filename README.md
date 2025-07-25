@@ -19,3 +19,10 @@
     - 課された課題をやる(クローラーの実装とRPCパッケージの理解)
     - Lecture Noteと一緒にcrawler.goとkv.goを読む
     - 再度FAQを読んでちゃんと全て理解する
+- [ ] Lecture 3: Primary-Backup Replication
+  - [ ] [Lecture Note](lectures/03/l-vm-ft.txt)
+  - [ ] [FAQ](lectures/03/vm-ft-faq.txt)
+  - [ ] [The Design of a Practical System for Fault-Tolerant Virtual Machines](https://pdos.csail.mit.edu/6.824/papers/vm-ft.pdf)
+  - [ ] [Paper Questions](https://pdos.csail.mit.edu/6.824/questions.html?q=q-vm-ft&lec=3)
+  - [ ] [Video](https://youtu.be/gXiDmq1zDq4?si=vBWLws_WE0pgZZMF)
+  - [ ] [Lab 2: Key/Value Server](https://pdos.csail.mit.edu/6.824/labs/lab-kvsrv1.html)
