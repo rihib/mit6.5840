@@ -20,8 +20,8 @@
     - Lecture Noteと一緒にcrawler.goとkv.goを読む
     - 再度FAQを読んでちゃんと全て理解する
 - [ ] Lecture 3: Primary-Backup Replication
-  - [ ] [Lecture Note](lectures/03/l-vm-ft.txt)
-  - [ ] [FAQ](lectures/03/vm-ft-faq.txt)
+  - [x] [Lecture Note](lectures/03/l-vm-ft.txt)
+  - [x] [FAQ](lectures/03/vm-ft-faq.txt)
   - [ ] [The Design of a Practical System for Fault-Tolerant Virtual Machines](lectures/03/vm-ft.pdf)
   - [ ] [Paper Questions](https://pdos.csail.mit.edu/6.824/questions.html?q=q-vm-ft&lec=3)
   - [ ] [Video](https://youtu.be/gXiDmq1zDq4?si=vBWLws_WE0pgZZMF)
