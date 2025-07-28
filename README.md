@@ -26,3 +26,9 @@
   - [ ] [Paper Questions](https://pdos.csail.mit.edu/6.824/questions.html?q=q-vm-ft&lec=3)
   - [ ] [Video](https://youtu.be/gXiDmq1zDq4?si=vBWLws_WE0pgZZMF)
   - [ ] [Lab 2: Key/Value Server](https://pdos.csail.mit.edu/6.824/labs/lab-kvsrv1.html)
+
+## Setup
+
+```bash
+brew install poppler
+```
