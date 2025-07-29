@@ -26,11 +26,11 @@
   - [x] [Paper Questions](lectures/03/questions.md)
   - [ ] [Video](https://youtu.be/gXiDmq1zDq4?si=vBWLws_WE0pgZZMF)
   - [ ] [Lab 2: Key/Value Server](https://pdos.csail.mit.edu/6.824/labs/lab-kvsrv1.html)
-- [ ] Lecture 4: Consistency and Linearizability
-  - [ ] [Lecture Note](lectures/04/l-linearizability.txt)
-  - [ ] [FAQ](lectures/04/linearizability-faq.txt)
-  - [ ] [Testing Distributed Systems for Linearizability](https://anishathalye.com/testing-distributed-systems-for-linearizability/)
-  - [ ] [Paper Questions](lectures/04/questions.md)
+- [x] Lecture 4: Consistency and Linearizability
+  - [x] [Lecture Note](lectures/04/l-linearizability.txt)
+  - [x] [FAQ](lectures/04/linearizability-faq.txt)
+  - [x] [Testing Distributed Systems for Linearizability](https://anishathalye.com/testing-distributed-systems-for-linearizability/)
+  - [x] [Paper Questions](lectures/04/questions.md)
 
 ## Setup
 
