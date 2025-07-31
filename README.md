@@ -24,7 +24,7 @@
   - [x] [FAQ](lectures/03/vm-ft-faq.txt)
   - [x] [The Design of a Practical System for Fault-Tolerant Virtual Machines](lectures/03/vm-ft.pdf)
   - [x] [Paper Questions](lectures/03/questions.md)
-  - [ ] [Video](https://youtu.be/gXiDmq1zDq4?si=vBWLws_WE0pgZZMF)
+  - [x] [Video](https://youtu.be/gXiDmq1zDq4?si=vBWLws_WE0pgZZMF)
   - [ ] [Lab 2: Key/Value Server](https://pdos.csail.mit.edu/6.824/labs/lab-kvsrv1.html)
 - [x] Lecture 4: Consistency and Linearizability
   - [x] [Lecture Note](lectures/04/l-linearizability.txt)
