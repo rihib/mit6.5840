@@ -67,6 +67,7 @@ func ConcurrentMutex(url string, fetcher Fetcher, fs *fetchState) {
 }
 
 func makeState() *fetchState {
+	// 値渡しをしてしまうとmutexがコピーされてしまってロックの意味をなさなくなるので注意
 	return &fetchState{fetched: make(map[string]bool)}
 }
 
@@ -105,6 +106,9 @@ func coordinator(ch chan []string, fetcher Fetcher) {
 
 func ConcurrentChannel(url string, fetcher Fetcher) {
 	ch := make(chan []string)
+	// ここでgoroutineを使わないと、chにurlを送信したが、
+	// 誰も受信できない（誰かが受信してくれないと次のcoordinatorの呼び出しを行えない）
+	// ため、デッドロックになる
 	go func() {
 		ch <- []string{url}
 	}()
