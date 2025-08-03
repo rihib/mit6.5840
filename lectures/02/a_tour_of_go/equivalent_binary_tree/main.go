@@ -1,3 +1,4 @@
+// https://go.dev/tour/concurrency/8
 package main
 
 import (
@@ -5,8 +6,6 @@ import (
 
 	"golang.org/x/tour/tree"
 )
-
-// https://go.dev/tour/concurrency/8
 
 // Walk walks the tree t sending all values
 // from the tree to the channel ch.
