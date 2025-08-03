@@ -1,8 +1,10 @@
 package main
 
-import "sync"
-import "time"
-import "math/rand"
+import (
+	"math/rand"
+	"sync"
+	"time"
+)
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
@@ -27,7 +29,7 @@ func main() {
 		mu.Lock()
 
 		if count >= 5 || finished == 10 {
-			break
+			break // breakする場合は最後のunlockでロックを開放する（countの値を引き続き参照するため）
 		}
 		mu.Unlock()
 	}
