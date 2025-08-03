@@ -60,7 +60,7 @@ func ConcurrentMutex(url string, fetcher Fetcher, fs *fetchState) {
 		go func(u string) {
 			ConcurrentMutex(u, fetcher, fs)
 			done.Done()
-		}(u)
+		}(u) // 値渡しせずにuを直接使ってしまうとgoroutineの外の処理でuの値が変わってしまう可能性がある
 	}
 	done.Wait()
 	return
@@ -94,6 +94,8 @@ func coordinator(ch chan []string, fetcher Fetcher) {
 				go worker(u, ch, fetcher)
 			}
 		}
+		// workerは必ず１回チャネルに値（urls）を送信するので、
+		// workerが呼ばれた回数と、処理されるurlsの個数は一致する
 		n -= 1
 		if n == 0 {
 			break
