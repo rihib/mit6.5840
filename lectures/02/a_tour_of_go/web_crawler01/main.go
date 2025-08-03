@@ -12,6 +12,8 @@ type Fetcher interface {
 	Fetch(url string) (body string, urls []string, err error)
 }
 
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 // Crawl uses fetcher to recursively crawl
 // pages starting with url, to a maximum of depth.
 func Crawl(url string, depth int, fetcher Fetcher) {
@@ -54,6 +56,8 @@ func main() {
 	fetcher := newFakeFetcher()
 	Crawl("https://golang.org/", 4, fetcher)
 }
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 type fakeFetcher struct {
 	data    fakeData

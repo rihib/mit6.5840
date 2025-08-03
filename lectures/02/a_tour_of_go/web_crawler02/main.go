@@ -11,6 +11,8 @@ type Fetcher interface {
 	Fetch(url string) (body string, urls []string, err error)
 }
 
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 type fetchState struct {
 	mu      sync.Mutex
 	fetched map[string]bool
@@ -57,6 +59,8 @@ func Crawl(url string, depth int, fetcher Fetcher, fs *fetchState) {
 func main() {
 	Crawl("https://golang.org/", 4, fetcher, newFetchState())
 }
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // fakeFetcher is Fetcher that returns canned results.
 type fakeFetcher map[string]*fakeResult
