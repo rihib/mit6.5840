@@ -16,10 +16,10 @@ type Fetcher interface {
 // pages starting with url, to a maximum of depth.
 func Crawl(url string, depth int, fetcher Fetcher) {
 	ch := make(chan []string)
+	counter := 1
 	go func() {
 		ch <- []string{url}
 	}()
-	n := 1
 	fetched := make(map[string]bool)
 	for urls := range ch {
 		if depth <= 0 {
@@ -33,11 +33,11 @@ func Crawl(url string, depth int, fetcher Fetcher) {
 				continue
 			}
 			fetched[u] = true
-			n++
+			counter++
 			go worker(u, ch, fetcher)
 		}
-		n--
-		if n == 0 {
+		counter--
+		if counter == 0 {
 			break
 		}
 	}
