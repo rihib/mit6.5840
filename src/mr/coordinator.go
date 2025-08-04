@@ -13,15 +13,21 @@ type Coordinator struct {
 
 }
 
-// Your code here -- RPC handlers for the worker to call.
+// create a Coordinator.
+// main/mrcoordinator.go calls this function.
+// nReduce is the number of reduce tasks to use.
+func MakeCoordinator(files []string, nReduce int) *Coordinator {
+	c := Coordinator{}
 
-// an example RPC handler.
-//
-// the RPC argument and reply types are defined in rpc.go.
-func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
-	reply.Y = args.X + 1
-	return nil
+	// Your code here.
+	// workerからタスク要求のRPCを受け取り、まだ割り振られていないmapタスク（ファイル名）を返す
+	// ファイル名を返したあと、10秒待ってもそのworkerからの応答がなければ別のworkerに同じタスクを割り振る
+
+	c.server()
+	return &c
 }
+
+// Your code here -- RPC handlers for the worker to call.
 
 // start a thread that listens for RPCs from worker.go
 func (c *Coordinator) server() {
@@ -40,21 +46,18 @@ func (c *Coordinator) server() {
 // main/mrcoordinator.go calls Done() periodically to find out
 // if the entire job has finished.
 func (c *Coordinator) Done() bool {
-	ret := true
+	ret := false
 
 	// Your code here.
+	// MapReduce ジョブが完全に終了したときに true を返す
 
 	return ret
 }
 
-// create a Coordinator.
-// main/mrcoordinator.go calls this function.
-// nReduce is the number of reduce tasks to use.
-func MakeCoordinator(files []string, nReduce int) *Coordinator {
-	c := Coordinator{}
-
-	// Your code here.
-
-	c.server()
-	return &c
+// an example RPC handler.
+//
+// the RPC argument and reply types are defined in rpc.go.
+func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
+	reply.Y = args.X + 1
+	return nil
 }

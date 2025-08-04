@@ -35,8 +35,12 @@ brew install poppler
     - [ ] Implement `src/mr/*.go`
     - [ ] Run `mrcoordinator.go` & `mrworker.go` with `-race` flag
     - [ ] Run `src/main/test-mr.sh`
+    - [ ] Implement backup task
     - [ ] Run with `src/mrapps/crash.go`
     - [ ] Run `src/main/test-mr-many.sh`
+    - [ ] No-credit challenge exercises
+      - [ ] Implement your own MapReduce application
+      - [ ] Get your MapReduce coordinator and workers to run on separate machines
 - [x] Lecture 2: RPC and Threads
   - [x] [A Tour of Go Concurrency](https://go.dev/tour/concurrency/1)
   - [x] [Question](lectures/02/question.md) & Read `crawler.go`
