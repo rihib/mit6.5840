@@ -1,5 +1,6 @@
 pkg/
 *-handin.tar.gz
+mr-out-*
 
 #
 # macOS
