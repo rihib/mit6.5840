@@ -1,0 +1,1339 @@
+From: <Saved by Blink>
+Snapshot-Content-Location: https://pdos.csail.mit.edu/6.824/labs/lab-mr.html
+Subject: 6.5840 Lab 1: MapReduce
+Date: Mon, 4 Aug 2025 16:59:36 +0900
+MIME-Version: 1.0
+Content-Type: multipart/related;
+	type="text/html";
+	boundary="----MultipartBoundary--UzpkfJN6WZuZmoW2wVfz7cxjIRaPSASoY1tl9LSPqn----"
+
+
+------MultipartBoundary--UzpkfJN6WZuZmoW2wVfz7cxjIRaPSASoY1tl9LSPqn----
+Content-Type: text/html
+Content-ID: <frame-4F32B227B9D78150B503C34B25AF7F1C@mhtml.blink>
+Content-Transfer-Encoding: quoted-printable
+Content-Location: https://pdos.csail.mit.edu/6.824/labs/lab-mr.html
+
+<!DOCTYPE html><html class=3D""><head><meta http-equiv=3D"Content-Type" con=
+tent=3D"text/html; charset=3Dwindows-1252">
+<title>6.5840 Lab 1: MapReduce</title>
+<link rel=3D"stylesheet" href=3D"https://pdos.csail.mit.edu/6.824/style.css=
+" type=3D"text/css">
+
+<link type=3D"text/css" rel=3D"stylesheet" charset=3D"UTF-8" href=3D"https:=
+//www.gstatic.com/_/translate_http/_/ss/k=3Dtranslate_http.tr.pgV-E-68K-A.L=
+.W.O/am=3DhMA/d=3D0/rs=3DAN8SPfoMSCsz74287nno-gZmD_8fI6XKww/m=3Del_main_css=
+"></head>
+<body>
+<div align=3D"center">
+<h2><a href=3D"https://pdos.csail.mit.edu/6.824/index.html">6.5840</a> - Sp=
+ring 2025</h2>
+<h1>6.5840 Lab 1: MapReduce</h1>
+
+<center>
+<p>
+  <b><a href=3D"https://pdos.csail.mit.edu/6.824/labs/collab.html">Collabor=
+ation policy</a></b> //
+  <b><a href=3D"https://pdos.csail.mit.edu/6.824/labs/submit.html">Submit l=
+ab</a></b> //
+  <b><a href=3D"https://pdos.csail.mit.edu/6.824/labs/go.html">Setup Go</a>=
+</b> //
+  <b><a href=3D"https://pdos.csail.mit.edu/6.824/labs/guidance.html">Guidan=
+ce</a></b> //
+  <b><a href=3D"https://piazza.com/mit/spring2025/65840">Piazza</a></b>
+</p>
+</center>
+
+</div>
+<hr>
+
+<h3>Introduction</h3>
+
+<p>
+In this lab you'll build a MapReduce system.
+You'll implement a worker process that calls application Map and Reduce
+functions and handles reading and writing files,
+and a coordinator process that hands out tasks to
+workers and copes with failed workers.
+You'll be building something similar to the
+<a href=3D"http://research.google.com/archive/mapreduce-osdi04.pdf">MapRedu=
+ce paper</a>.
+(Note: this lab uses "coordinator" instead of the paper's "master".)
+
+</p><h3>Getting started</h3>
+
+<p>You need to <a href=3D"https://pdos.csail.mit.edu/6.824/labs/go.html">se=
+tup Go</a> to do the labs.
+
+</p><p>
+Fetch the initial lab software with
+<a href=3D"https://git-scm.com/">git</a> (a version control system).
+To learn more about git, look at the
+<a href=3D"https://git-scm.com/book/en/v2">Pro Git book</a> or the
+<a href=3D"http://www.kernel.org/pub/software/scm/git/docs/user-manual.html=
+">git user's manual</a>.
+
+</p><pre>$ git clone git://g.csail.mit.edu/6.5840-golabs-2025 6.5840
+$ cd 6.5840
+$ ls
+Makefile src
+$
+</pre>
+
+<p>
+We supply you with a simple sequential mapreduce implementation in
+<tt>src/main/mrsequential.go</tt>. It runs the maps and reduces one at a
+time, in a single process. We also
+provide you with a couple of MapReduce applications: word-count
+in <tt>mrapps/wc.go</tt>, and a text indexer
+in <tt>mrapps/indexer.go</tt>. You can run
+word count sequentially as follows:
+
+</p><pre>$ cd ~/6.5840
+$ cd src/main
+$ go build -buildmode=3Dplugin ../mrapps/wc.go
+$ rm mr-out*
+$ go run mrsequential.go wc.so pg*.txt
+$ more mr-out-0
+A 509
+ABOUT 2
+ACT 8
+...
+</pre>
+
+<p>
+<tt>mrsequential.go</tt> leaves its output in the file <tt>mr-out-0</tt>.
+The input is from the text files named <tt>pg-xxx.txt</tt>.
+
+</p><p>
+Feel free to borrow code from <tt>mrsequential.go</tt>.
+You should also have a look at <tt>mrapps/wc.go</tt> to see what
+MapReduce application code looks like.
+
+</p><p>
+For this lab and all the others, we might issue updates to the code we
+provide you. To ensure that you can fetch those updates and easily
+merge them using <tt>git pull</tt>, it's best to leave the code we
+provide in the original files. You can add to the code we provide as
+directed in the lab write-ups; just don't move it. It's OK to put your
+own new functions in new files.
+
+</p><h3>Your Job (<a class=3D"moderate/hard" href=3D"https://pdos.csail.mit=
+.edu/6.824/labs/guidance.html">moderate/hard</a>)</h3>
+
+Your job is to implement a distributed MapReduce, consisting of
+two programs, the coordinator and the worker. There will be
+just one coordinator process, and one or more worker processes executing in
+parallel. In a real system the workers would run on a bunch of
+different machines, but for this lab you'll run them all on a single machin=
+e.
+The workers will talk to the coordinator via RPC. Each worker process will,
+in a loop, ask
+the coordinator for a task, read the task's input from one or more files,
+execute the task, write the task's output to one
+or more files, and again ask the coordinator for a
+new task. The coordinator should notice if a worker hasn't completed
+its task in a reasonable amount of time (for this lab, use ten
+seconds), and give the same task to a different worker.
+
+<p>
+We have given you a little code to start you off. The "main" routines for
+the coordinator and worker are in <tt>main/mrcoordinator.go</tt> and <tt>ma=
+in/mrworker.go</tt>;
+don't change these files. You should put your implementation in <tt>mr/coor=
+dinator.go</tt>,
+<tt>mr/worker.go</tt>, and <tt>mr/rpc.go</tt>.
+
+</p><p>
+Here's how to run your code on the word-count MapReduce
+application. First, make sure the word-count plugin is
+freshly built:
+</p><pre>$ go build -buildmode=3Dplugin ../mrapps/wc.go
+</pre>
+
+In the <tt>main</tt> directory, run the coordinator.
+<pre>$ rm mr-out*
+$ go run mrcoordinator.go pg-*.txt
+</pre>
+
+The <tt>pg-*.txt</tt> arguments to <tt>mrcoordinator.go</tt> are
+the input files; each file corresponds to one "split", and is the
+input to one Map task.
+
+<p>
+In one or more other windows, run some workers:
+</p><pre>$ go run mrworker.go wc.so
+</pre>
+
+When the workers and coordinator have finished, look at the output
+in <tt>mr-out-*</tt>. When you've completed the lab, the
+sorted union of the output files should match the sequential
+output, like this:
+<pre>$ cat mr-out-* | sort | more
+A 509
+ABOUT 2
+ACT 8
+...
+</pre>
+
+<p>
+We supply you with a test script in <tt>main/test-mr.sh</tt>. The tests
+check that the <tt>wc</tt> and <tt>indexer</tt> MapReduce applications
+produce the correct output when given the <tt>pg-xxx.txt</tt> files as
+input. The tests also check that your implementation runs the Map and
+Reduce tasks in parallel, and that your implementation recovers from
+workers that crash while running tasks.
+
+</p><p>
+If you run the test script now, it will hang because the coordinator never =
+finishes:
+</p>
+
+<pre>$ cd ~/6.5840/src/main
+$ bash test-mr.sh
+*** Starting wc test.
+</pre>
+
+<p>
+You can change <tt>ret :=3D false</tt> to true in the Done function in <tt>=
+mr/coordinator.go</tt>
+so that the coordinator exits immediately. Then:
+</p>
+
+<pre>$ bash test-mr.sh
+*** Starting wc test.
+sort: No such file or directory
+cmp: EOF on mr-wc-all
+--- wc output is not the same as mr-correct-wc.txt
+--- wc test: FAIL
+$
+</pre>
+
+<p>
+The test script expects to see output in files named <tt>mr-out-X</tt>, one
+for each reduce task. The empty implementations of <tt>mr/coordinator.go</t=
+t>
+and <tt>mr/worker.go</tt> don't produce those files (or do much of
+anything else), so the test fails.
+
+</p><p>
+When you've finished, the test script output should look like this:
+
+</p><pre>$ bash test-mr.sh
+*** Starting wc test.
+--- wc test: PASS
+*** Starting indexer test.
+--- indexer test: PASS
+*** Starting map parallelism test.
+--- map parallelism test: PASS
+*** Starting reduce parallelism test.
+--- reduce parallelism test: PASS
+*** Starting job count test.
+--- job count test: PASS
+*** Starting early exit test.
+--- early exit test: PASS
+*** Starting crash test.
+--- crash test: PASS
+*** PASSED ALL TESTS
+$
+</pre>
+
+<p>
+You may see some errors from the Go RPC package that look like
+</p><pre>2019/12/16 13:27:09 rpc.Register: method "Done" has 1 input parame=
+ters; needs exactly three
+</pre>
+Ignore these messages; registering the coordinator as an <a href=3D"https:/=
+/golang.org/src/net/rpc/server.go">RPC server</a> checks if all its=20
+methods are suitable for RPCs (have 3 inputs); we know that <tt>Done</tt> i=
+s not called via RPC.
+
+<p>
+Additionally, depending on your strategy for terminating worker processes, =
+you may see some errors of the form
+</p><pre>2025/02/11 16:21:32 dialing:dial unix /var/tmp/5840-mr-501: connec=
+t: connection refused
+</pre>
+It is fine to see a handful of these messages per test; they arise when the=
+ worker is unable to contact the coordinator RPC server after
+the coordinator has exited.
+
+<p>
+</p><h3>A few rules:</h3>
+
+<ul>
+
+<li>
+The map phase should divide the intermediate keys into buckets for
+<tt>nReduce</tt> reduce tasks,
+where <tt>nReduce</tt> is the number of reduce tasks -- the argument that
+<tt>main/mrcoordinator.go</tt> passes to <tt>MakeCoordinator()</tt>.
+Each mapper should create <tt>nReduce</tt> intermediate files for
+consumption by the reduce tasks.
+
+</li><li> The worker implementation should put the output of the X'th
+reduce task in the file <tt>mr-out-X</tt>.
+
+</li><li> A <tt>mr-out-X</tt> file should contain one line per Reduce
+function output. The line should be generated with the Go <tt>"%v %v"</tt>
+format, called with the key and value. Have a look in <tt>main/mrsequential=
+.go</tt>
+for the line commented "this is the correct format".
+The test script will fail if your implementation deviates too much from thi=
+s format.
+
+</li><li> You can modify <tt>mr/worker.go</tt>, <tt>mr/coordinator.go</tt>,=
+ and <tt>mr/rpc.go</tt>.
+You can temporarily modify other files for testing, but make sure your code=
+ works
+with the original versions; we'll test with the original versions.
+
+</li><li> The worker should put intermediate Map output in files in the cur=
+rent
+directory, where your worker can later read them as input to Reduce tasks.
+
+</li><li> <tt>main/mrcoordinator.go</tt> expects <tt>mr/coordinator.go</tt>=
+ to implement a
+<tt>Done()</tt> method that returns true when the MapReduce job is complete=
+ly finished;
+at that point, <tt>mrcoordinator.go</tt> will exit.
+
+</li><li> When the job is completely finished, the worker processes should =
+exit.
+A simple way to implement this is to use the return value from <tt>call()</=
+tt>:
+if the worker fails to contact the coordinator, it can assume that the coor=
+dinator has exited
+because the job is done, so the worker can terminate too. Depending on your
+design, you might also find it helpful to have a "please exit" pseudo-task
+that the coordinator can give to workers.
+
+</li></ul>
+
+<h3>Hints</h3>
+
+<ul>
+
+<li>The <a href=3D"https://pdos.csail.mit.edu/6.824/labs/guidance.html">Gui=
+dance page</a> has some=20
+  tips on developing and debugging.
+
+</li><li> One way to get started is to modify <tt>mr/worker.go</tt>'s
+<tt>Worker()</tt> to send an RPC to the coordinator asking for a task. Then
+modify the coordinator to respond with the file name of an as-yet-unstarted
+map task. Then modify the worker to read that file and call the
+application Map function, as in <tt>mrsequential.go</tt>.
+
+</li><li> The application Map and Reduce functions are loaded at run-time
+using the Go plugin package, from files whose names end in <tt>.so</tt>.
+
+</li><li> If you change anything in the <tt>mr/</tt> directory, you will
+probably have to re-build any MapReduce plugins you use, with
+something like <tt>go build -buildmode=3Dplugin ../mrapps/wc.go</tt>
+
+</li><li> This lab relies on the workers sharing a file system.
+That's straightforward when all workers run on the same machine, but would =
+require a global
+filesystem like GFS if the workers ran on different machines.
+
+</li><li> A reasonable naming convention for intermediate files is <tt>mr-X=
+-Y</tt>,
+where X is the Map task number, and Y is the reduce task number.
+
+</li><li> The worker's map task code will need a way to store intermediate
+key/value pairs in files in a way that can be correctly read back
+during reduce tasks. One possibility is to use Go's <tt>encoding/json</tt> =
+package. To
+write key/value pairs in JSON format to an open file:
+<pre>  enc :=3D json.NewEncoder(file)
+  for _, kv :=3D ... {
+    err :=3D enc.Encode(&amp;kv)
+</pre>
+and to read such a file back:
+<pre>  dec :=3D json.NewDecoder(file)
+  for {
+    var kv KeyValue
+    if err :=3D dec.Decode(&amp;kv); err !=3D nil {
+      break
+    }
+    kva =3D append(kva, kv)
+  }
+</pre>
+
+</li><li> The map part of your worker can use the <tt>ihash(key)</tt> funct=
+ion
+(in <tt>worker.go</tt>) to pick the reduce task for a given key.
+
+</li><li> You can steal some code from <tt>mrsequential.go</tt> for reading
+Map input files, for sorting intermedate key/value pairs between the
+Map and Reduce, and for storing Reduce output in files.
+
+</li><li> The coordinator, as an RPC server, will be concurrent; don't forg=
+et
+to lock shared data.
+
+</li><li> Use Go's race detector, with <tt>go run -race</tt>.
+<tt>test-mr.sh</tt> has a comment at the start that tells you
+how to run it with <tt>-race</tt>.
+When we grade your labs, we will <b>not</b> use the
+race detector. Nevertheless, if your code has races, there's
+a good chance it will fail when we test it even without
+the race detector.
+
+</li><li> Workers will sometimes need to wait, e.g. reduces can't start
+until the last map has finished. One possibility is for workers to
+periodically ask the coordinator for work, sleeping
+with <tt>time.Sleep()</tt> between each request. Another possibility
+is for the relevant RPC handler in the coordinator to have a loop that
+waits, either with <tt>time.Sleep()</tt> or <tt>sync.Cond</tt>. Go
+runs the handler for each RPC in its own thread, so the fact that one
+handler is waiting needn't prevent the coordinator from processing other
+RPCs.
+
+</li><li> The coordinator can't reliably distinguish between crashed worker=
+s,
+workers that are alive but have stalled for some reason,
+and workers that are executing but too slowly to be useful.
+The best you can do is have the coordinator wait for
+some amount of time, and then give up and re-issue the task to
+a different worker. For this lab, have the coordinator wait for
+ten seconds; after that the coordinator should assume the worker has
+died (of course, it might not have).
+
+</li><li> If you choose to implement Backup Tasks (Section 3.6), note that =
+we test that your code doesn't
+    schedule extraneous tasks when workers execute tasks without crashing. =
+ Backup tasks should only
+    be scheduled after some relatively long period of time (e.g., 10s).
+
+</li><li> To test crash recovery, you can use the <tt>mrapps/crash.go</tt>
+application plugin. It randomly exits in the Map and Reduce functions.
+
+</li><li> To ensure that nobody observes partially written files in the pre=
+sence of
+    crashes, the MapReduce paper mentions the trick of using a temporary fi=
+le
+    and atomically renaming it once it is completely written. You can use
+    <tt>ioutil.TempFile</tt> (or <tt>os.CreateTemp</tt> if you are running
+    Go 1.17 or later) to create a temporary file and <tt>os.Rename</tt>
+    to atomically rename it.
+
+</li><li> <tt>test-mr.sh</tt> runs all its processes in the sub-directory <=
+tt>mr-tmp</tt>, so if
+    something goes wrong and you want to look at intermediate or output fil=
+es, look there. Feel free to
+    temporarily modify <tt>test-mr.sh</tt> to <tt>exit</tt> after the faili=
+ng test, so the script does not
+    continue testing (and overwrite the output files).
+
+</li><li> <tt>test-mr-many.sh</tt> runs <tt>test-mr.sh</tt> many times in a=
+ row,
+    which you may want to do in order to spot low-probability bugs.
+    It takes as an argument the number of times to run
+    the tests. You should not run several <tt>test-mr.sh</tt> instances in =
+parallel because the
+    coordinator will reuse the same socket, causing conflicts.
+
+</li><li>Go RPC sends only struct fields whose names start with capital let=
+ters.
+  Sub-structures must also have capitalized field names.
+
+</li><li> When calling the RPC <tt>call()</tt> function, the
+reply struct should contain all default values. RPC calls
+should look like this:
+<pre>  reply :=3D SomeType{}
+  call(..., &amp;reply)
+</pre>
+without setting any fields of reply before the call. If you
+pass reply structures that have non-default fields, the RPC
+system may silently return incorrect values.
+
+</li></ul>
+
+<h3>No-credit challenge exercises</h3>
+
+<p class=3D"challenge">
+Implement your own MapReduce application (see examples in <tt>mrapps/*</tt>=
+), e.g., Distributed
+Grep (Section 2.3 of the MapReduce paper).
+
+</p><p class=3D"challenge">
+Get your MapReduce coordinator and workers to run on separate machines, as =
+they would in practice.
+You will need to set up your RPCs to communicate over TCP/IP instead of Uni=
+x sockets (see
+the commented out line in <tt>Coordinator.server()</tt>), and read/write fi=
+les using a shared file
+system. For example, you can <tt>ssh</tt> into multiple=20
+<a href=3D"http://kb.mit.edu/confluence/display/istcontrib/Getting+Started+=
+with+Athena">Athena cluster</a>
+machines at MIT, which use=20
+<a href=3D"http://kb.mit.edu/confluence/display/istcontrib/AFS+at+MIT+-+An+=
+Introduction">AFS</a>
+to share files; or you could rent a couple AWS instances and use=20
+<a href=3D"https://aws.amazon.com/s3/">S3</a> for storage.
+
+
+
+
+
+
+
+</p><div id=3D"goog-gt-tt" class=3D"VIpgJd-yAWNEb-L7lbkb skiptranslate" sty=
+le=3D"border-radius: 12px; margin: 0 0 0 -23px; padding: 0; font-family: 'G=
+oogle Sans', Arial, sans-serif;" data-id=3D""><div id=3D"goog-gt-vt" class=
+=3D"VIpgJd-yAWNEb-hvhgNd"><div class=3D"VIpgJd-yAWNEb-hvhgNd-Ud7fr"><img sr=
+c=3D"https://fonts.gstatic.com/s/i/productlogos/translate/v14/24px.svg" wid=
+th=3D"24" height=3D"24" alt=3D""><div class=3D" VIpgJd-yAWNEb-hvhgNd-IuizWc=
+-i3jM8c " dir=3D"ltr">&#21407;&#25991;</div></div><div class=3D"VIpgJd-yAWN=
+Eb-hvhgNd-k77Iif"><div id=3D"goog-gt-original-text" class=3D"VIpgJd-yAWNEb-=
+nVMfcd-fmcmS VIpgJd-yAWNEb-hvhgNd-axAV1"></div></div><div class=3D"VIpgJd-y=
+AWNEb-hvhgNd-N7Eqid ltr"><div class=3D"VIpgJd-yAWNEb-hvhgNd-N7Eqid-B7I4Od l=
+tr" dir=3D"ltr"><div class=3D"VIpgJd-yAWNEb-hvhgNd-UTujCb">&#12371;&#12398;=
+&#32763;&#35379;&#12434;&#35413;&#20385;&#12375;&#12390;&#12367;&#12384;&#1=
+2373;&#12356;</div><div class=3D"VIpgJd-yAWNEb-hvhgNd-eO9mKe">&#12356;&#123=
+83;&#12384;&#12356;&#12383;&#12501;&#12451;&#12540;&#12489;&#12496;&#12483;=
+&#12463;&#12399; Google &#32763;&#35379;&#12398;&#25913;&#21892;&#12395;&#2=
+4441;&#31435;&#12390;&#12373;&#12379;&#12390;&#12356;&#12383;&#12384;&#1236=
+5;&#12414;&#12377;</div></div><div class=3D"VIpgJd-yAWNEb-hvhgNd-xgov5 ltr"=
+><button id=3D"goog-gt-thumbUpButton" type=3D"button" class=3D"VIpgJd-yAWNE=
+b-hvhgNd-bgm6sf" title=3D"&#33391;&#12356;&#32763;&#35379;" aria-label=3D"&=
+#33391;&#12356;&#32763;&#35379;" aria-pressed=3D"false"><span id=3D"goog-gt=
+-thumbUpIcon"><svg width=3D"24" height=3D"24" viewBox=3D"0 0 24 24" focusab=
+le=3D"false" class=3D"VIpgJd-yAWNEb-hvhgNd-THI6Vb NMm5M"><path d=3D"M21 7h-=
+6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 0S7.08 6.85 7 7H2v13h16c.=
+83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73V9c0-1.1-.9-2-2-2zM7 =
+18H4V9h3v9zm14-7l-3 7H9V8l4.34-4.34L12 9h9v2z"></path></svg></span><span id=
+=3D"goog-gt-thumbUpIconFilled"><svg width=3D"24" height=3D"24" viewBox=3D"0=
+ 0 24 24" focusable=3D"false" class=3D"VIpgJd-yAWNEb-hvhgNd-THI6Vb NMm5M"><=
+path d=3D"M21 7h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 0S7.08 6=
+.85 7 7v13h11c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73V9c0-1=
+.1-.9-2-2-2zM5 7H1v13h4V7z"></path></svg></span></button><button id=3D"goog=
+-gt-thumbDownButton" type=3D"button" class=3D"VIpgJd-yAWNEb-hvhgNd-bgm6sf" =
+title=3D"&#24746;&#12356;&#32763;&#35379;" aria-label=3D"&#24746;&#12356;&#=
+32763;&#35379;" aria-pressed=3D"false"><span id=3D"goog-gt-thumbDownIcon"><=
+svg width=3D"24" height=3D"24" viewBox=3D"0 0 24 24" focusable=3D"false" cl=
+ass=3D"VIpgJd-yAWNEb-hvhgNd-THI6Vb NMm5M"><path d=3D"M3 17h6.31l-.95 4.57-.=
+03.32c0 .41.17.79.44 1.06L9.83 24s7.09-6.85 7.17-7h5V4H6c-.83 0-1.54.5-1.84=
+ 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2zM17 6h3v9h-3V6zM3 13=
+l3-7h9v10l-4.34 4.34L12 15H3v-2z"></path></svg></span><span id=3D"goog-gt-t=
+humbDownIconFilled"><svg width=3D"24" height=3D"24" viewBox=3D"0 0 24 24" f=
+ocusable=3D"false" class=3D"VIpgJd-yAWNEb-hvhgNd-THI6Vb NMm5M"><path d=3D"M=
+3 17h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 24s7.09-6.85 7.17-7V4H6=
+c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2zm=
+16 0h4V4h-4v13z"></path></svg></span></button></div></div><div id=3D"goog-g=
+t-votingHiddenPane" class=3D"VIpgJd-yAWNEb-hvhgNd-aXYTce"><form id=3D"goog-=
+gt-votingForm" action=3D"https://translate.googleapis.com/translate_voting?=
+client=3Dte_lib" method=3D"post" target=3D"votingFrame" class=3D"VIpgJd-yAW=
+NEb-hvhgNd-aXYTce"><input type=3D"text" name=3D"sl" id=3D"goog-gt-votingInp=
+utSrcLang"><input type=3D"text" name=3D"tl" id=3D"goog-gt-votingInputTrgLan=
+g"><input type=3D"text" name=3D"query" id=3D"goog-gt-votingInputSrcText"><i=
+nput type=3D"text" name=3D"gtrans" id=3D"goog-gt-votingInputTrgText"><input=
+ type=3D"text" name=3D"vote" id=3D"goog-gt-votingInputVote"></form><iframe =
+name=3D"votingFrame" frameborder=3D"0"></iframe></div></div></div><browser-=
+mcp-container data-wxt-shadow-root=3D""><template shadowmode=3D"open"><html=
+><head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dwi=
+ndows-1252"></head><body><div></div></body></html></template></browser-mcp-=
+container></body></html><!--  LocalWords:  Paxos Sharded shard sharding sha=
+rded Put's src shardcoordinator
+--><!--  LocalWords:  shardkv cd TestUnreliable Go's RPCs RPC's GID px
+--><!--  LocalWords:  kvpaxos Config ErrWrongGroup Handin gzipped czvf whoa=
+mi tgz
+-->
+------MultipartBoundary--UzpkfJN6WZuZmoW2wVfz7cxjIRaPSASoY1tl9LSPqn----
+Content-Type: image/svg+xml
+Content-Transfer-Encoding: quoted-printable
+Content-Location: https://fonts.gstatic.com/s/i/productlogos/translate/v14/24px.svg
+
+<svg xmlns=3D"http://www.w3.org/2000/svg" xmlns:xlink=3D"http://www.w3.org/=
+1999/xlink" height=3D"24" viewBox=3D"0 0 24 24" width=3D"24"><path d=3D"M0 =
+0h24v24H0z" fill=3D"none"/><defs><path d=3D"M21.5 5h-9.17L11 1H2.5C1.68 1 1=
+ 1.68 1 2.5v15c0 .83.68 1.5 1.5 1.5h9.17L13 23h8.5c.82 0 1.5-.68 1.5-1.5v-1=
+5c0-.83-.68-1.5-1.5-1.5z" id=3D"a"/></defs><clipPath id=3D"b"><use overflow=
+=3D"visible" xlink:href=3D"#a"/></clipPath><g clip-path=3D"url(#b)"><image =
+height=3D"31" opacity=3D".2" overflow=3D"visible" transform=3D"translate(3 =
+1)" width=3D"29" xlink:href=3D"data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=
+AAAB0AAAAfCAYAAAAbW8YEAAAACXBIWXMAAAsSAAALEgHS3X78AAAA GXRFWHRTb2Z0d2FyZQBB=
+ZG9iZSBJbWFnZVJlYWR5ccllPAAABQBJREFUeNq8V8tu20YUvXdm+LCk RKiMwI1TFEXhVZJd1g=
+W66xekv9DPqPsvXdU/UaDroJskKy+CInCcGpKtFy2SM/f2DEXZia0odtKW AkFJ8zhzzn3S0Ycv=
+ps+79EMDbj3Yfgv4EM+XTN/fEOb3Zg3AXmq7j64D5/e/x/EfzZMnX5jx+LFZ LLyp6yNDOzskYb=
+6RubFdpbdvKUl2Jc+d9PvP5dmzUyH6TVoYXQOq+H5g9vb+cONsO9maLpIyyZPU kZNAppmh9Vpg=
+5kSXwCSVJ5/Vi/r8Tl73y2F9ePidJ3oaga+B4vkUgF+6EW1ndz11gvNdDdL1bDNr yKkCWO16th=
+yUGWIIeae2ZGvn1of5xFExoGF5eHgM4ANZsW032Tf05MjeW+xmNKeedeWAg9tmywPM 6rGYzOAP=
+BSfQ5Ss0Nf4pAmRrSmBP1ehIxQ6DpxF1aXaSH5X0bDcAR1aOxLRPtPdrZrwnd55Sx3gz IMO72O=
+wBq9kmox0RSkHHRNxrRJWFDbQXKpR1xN4eOfx0NqnMdFHulY/rw/1RAE5crEvvffGCvX/E VUoO=
+C3Mm24eaO6TyNZjeB5E+sDLMt2tCqZEW8lcgPSU2x0IhKlAYoTP4xUTueUMvHvJK3ouQ8ffH HP=
+62JpGeg/VSYciqNADbHQxvY5etdr65yhNXlG2B5xjzgWfHJoSeZ5Olbuaq+czQyYSvxal701dJ =
+SWoigRNqXItjORhsC+x74NfDtPQ6aGPkgAUlGROpTKBQR4gbB1x6fjz3/DK8GsoHj/SVG6pJACi=
++ NhQdApsQJFPCeliYKImgeEJmylc3Xzw5yp9xnIMYMkZt9HjVhK/GeHtqZI5+KUVJXtSVQcwcY=
+DPo FI93jhW+DWSjzZrGts0NQSwOZTFoMaMBaly6CTFZG2KXUt3Z1aQzC36rKrFJ0cgUb6aZRnu=
+RwjtI lo7Eq3CLWSya4eJ7a+TN2eudvClbk17ItFepoQLrpyQyxkZTjBYIiwqnXwF/1mXerQivt=
+u+Hohp7 tf7cWJnCTgBleCQ3bBEaPiaCTRXkNqBLu955o2kv+NzIIogDkGlAEfuwL51DYh9z3sd=
+K1y1ALyX2 FxJLK3Fj339NYnO16P4fEl8J9HUSaytxTHFRYqrhnJ60AZU2lNpDNOULaZH1FqBXJ=
+S4LhN8ECeos MgbLWUx3AK+xv4+ZKN6ACxxlZw0xDzdZKj7Z6E1ALyQ+91WNclwgIU6wwRli7xT=
+kzjA8BQCSBxfL +MUhlnGMDMYlfsPuWsdSF4GZa226io1MW4nzPvkQbWgDnIlGYHSCTU+QbOI9B=
+NtTTB7hxmEIh+FT KDJGZoiVpkA6KmNRj90E0duPNmaNxJ29QVh0RxWsOMNRh0JyDIk7LBK1iw6=
+2BV1cLKaXpY2n+HWs GkZidOZEysp3fDK4K3TvK90EisGf6bD/k6CTqDpBZt6EoTWcSXQU5mhX1=
+FvNm/XRiyQiaw0XKmDi EXL9kdV6FMMu9kvpyUDoB3SIB5uYxp2+fSr9P7Na7IOipsUpxZ5BqIS=
+NTw1rFy6bGrKoIjAbS9uu EKoT2NowqiWJ7cqM0KD9lT8X2t+lKz3S2l4Z/e4v9ptXzcFyn9Zd8=
+nlHHcjXaNZsaCvKqlW6dWP2 Ibr7sdE2e68H9sy+TvN5J6nwydLUvtuWfmoLugH4Zg34JzbbHwO=
+/wavG+68VdJPXihuC/zcvUJ+0 0W2ufwQYAGHKK2CFMIrzAAAAAElFTkSuQmCC"/><radialGra=
+dient cx=3D"7.394" cy=3D"5.437" gradientUnits=3D"userSpaceOnUse" id=3D"c" r=
+=3D"23.416"><stop offset=3D"0" stop-color=3D"#EEE"/><stop offset=3D".432" s=
+top-color=3D"#E6E6E6"/><stop offset=3D"1" stop-color=3D"#E1E1E1"/></radialG=
+radient><path d=3D"M13 23h8.5c.82 0 1.5-.68 1.5-1.5v-15c0-.83-.68-1.5-1.5-1=
+.5H7l6 18z" fill=3D"url(#c)"/></g><path clip-path=3D"url(#b)" d=3D"M18 11v-=
+1h-1v1h-3.75v1h5.32c-.2.49-.6 1.3-1.32 2.14-.51-.6-.86-1.18-1.1-1.64h-1.11c=
+.36.84.9 1.66 1.52 2.38l-2.6 2.58.71.71 2.58-2.58 2.58 2.58.71-.71-2.6-2.58=
+c.74-.86 1.33-1.85 1.68-2.88H21v-1h-3z" fill=3D"#607D8B"/><linearGradient g=
+radientUnits=3D"userSpaceOnUse" id=3D"d" x1=3D"12.333" x2=3D"23" y1=3D"14" =
+y2=3D"14"><stop offset=3D"0" stop-color=3D"#212121" stop-opacity=3D".1"/><s=
+top offset=3D"1" stop-color=3D"#212121" stop-opacity=3D".02"/></linearGradi=
+ent><path clip-path=3D"url(#b)" d=3D"M12.33 5L23 15.67V23H13" fill=3D"url(#=
+d)"/><g clip-path=3D"url(#b)"><image height=3D"8" opacity=3D".1" overflow=
+=3D"visible" transform=3D"translate(10.5 17.5)" width=3D"9" xlink:href=3D"d=
+ata:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAJCAYAAAALpr0TAAAACXBIWX=
+MAAAsSAAALEgHS3X78AAAA GXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAOFJ=
+REFUeNp0UD1LA0EUnLe7JsJh CiFpLVNYaS3411L7Z/InUpgmqRIRLGxEOEVQsoRcbnecu6AGTB=
+4M72vevjdr+DPDf+Nvs3858q7a Fp4oDOZBJ5dJMCVDzJ2T+LYYpeAyTj39UMNXhA00HABXKy89=
+bY6UlqrFoMHm5QK0a/mbXYxSyyZm eCBTe5Kr68+NGq+Kv4QzoSM8q3ZP8imjXjdEv/6Ysnd+q6=
+a7UN4XFsKYlifbUJXvj3ftytAqM1vJ z6UgGvgiIbN90g8RVddFKZ/pzqX+Y5NDtdonHTI71vgW=
+YADzWmdx/4fpmQAAAABJRU5ErkJggg=3D=3D"/><path d=3D"M17 19l-4 4-1.33-4" fill=
+=3D"#3F51B5"/></g><path clip-path=3D"url(#b)" d=3D"M21.5 5H7l.04.12H21.5c.8=
+2 0 1.5.67 1.5 1.5V6.5c0-.83-.68-1.5-1.5-1.5z" fill=3D"#212121" fill-opacit=
+y=3D".02"/><path clip-path=3D"url(#b)" d=3D"M21.5 22.88H13L11.71 19h-.04L13=
+ 23h8.5c.82 0 1.5-.68 1.5-1.5v-.12c0 .82-.68 1.5-1.5 1.5z" fill=3D"#212121"=
+ fill-opacity=3D".1"/><path clip-path=3D"url(#b)" d=3D"M12.97 22.91L13 23l4=
+-4h-.12" fill=3D"#1A237E" fill-opacity=3D".2"/><path clip-path=3D"url(#b)" =
+d=3D"M11.67 19.12h5.21L17 19h-5.33" fill=3D"#1A237E" fill-opacity=3D".1"/><=
+g clip-path=3D"url(#b)"><image height=3D"22" opacity=3D".2" overflow=3D"vis=
+ible" transform=3D"translate(-.5 -.5)" width=3D"20" xlink:href=3D"data:imag=
+e/png;base64,iVBORw0KGgoAAAANSUhEUgAAABUAAAAXCAYAAADk3wSdAAAACXBIWXMAAAsSAA=
+ALEgHS3X78AAAA GXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAUpJREFUeNqs=
+lbFOwzAQQO/sQCRc sqAOlRgrMjCVr+Er+IZ+Ax/WTCwVeyVQl9IOQY2Pc2qhNFwcGsdSrHNsP5=
+2fpTPCeUP4X6PQZA2Z Pi41lqXRpCYKtA5tsFBVFdo9penh821ZSWsS112X1hBdPXG44BSyQMaE=
+oHcJ6QJLu+LxrguKQDQB UAuOn3nfLATlqc0psmvuvyQVibfARyaXoQPeh6Hk9Mw4uL2bv3xs31=
++P7UWq5Rd7LsvN8akg5zBP KTPSIgWXN3OCQo6ARkpiCNQd36maegV6DGgjW1lBJFRWMBQaVDAU=
+GlQwAvSvghhop4IYaKeCkaDn CmKhooJYqKhAtao59VV1od3w99BU4EsfcQVXruBuPBMvgJIv1s=
+dmPSVA3HOhLvy/bCC0qDk8rjP9 TtWB36gVv1Hrvjeq792SjokRF/Z7Fz8CDAC8EmWDKVGDLgAA=
+AABJRU5ErkJggg=3D=3D"/><path d=3D"M11 1H2.5C1.68 1 1 1.68 1 2.5v15c0 .83.68=
+ 1.5 1.5 1.5H17L11 1z" fill=3D"#4285F4"/></g><path clip-path=3D"url(#b)" d=
+=3D"M2.5 1C1.68 1 1 1.68 1 2.5v.12c0-.82.68-1.5 1.5-1.5H11V1H2.5z" fill=3D"=
+#FFF" fill-opacity=3D".02"/><path clip-path=3D"url(#b)" d=3D"M11 1v.12l5.92=
+ 17.75H2.5c-.82 0-1.5-.67-1.5-1.5v.12c0 .84.68 1.51 1.5 1.51H17L11 1z" fill=
+=3D"#212121" fill-opacity=3D".1"/><g clip-path=3D"url(#b)"><path d=3D"M7.5 =
+10v1.2h1.98c-.08.52-.6 1.51-1.98 1.51-1.2 0-2.17-.99-2.17-2.21S6.3 8.29 7.5=
+ 8.29c.68 0 1.13.29 1.39.54l.95-.92C9.24 7.35 8.44 7 7.5 7 5.57 7 4 8.57 4 =
+10.5S5.57 14 7.5 14c2.02 0 3.36-1.42 3.36-3.42 0-.23-.02-.41-.06-.58H7.5z" =
+fill=3D"#EEE"/><path d=3D"M4 7h7v7H4z" fill=3D"none"/></g><radialGradient c=
+x=3D"1.457" cy=3D"1.42" gradientUnits=3D"userSpaceOnUse" id=3D"e" r=3D"29.7=
+92"><stop offset=3D"0" stop-color=3D"#FFF" stop-opacity=3D".1"/><stop offse=
+t=3D"1" stop-color=3D"#FFF" stop-opacity=3D"0"/></radialGradient><path d=3D=
+"M21.5 5h-9.17L11 1H2.5C1.68 1 1 1.68 1 2.5v15c0 .83.68 1.5 1.5 1.5h9.17L13=
+ 23h8.5c.82 0 1.5-.68 1.5-1.5v-15c0-.83-.68-1.5-1.5-1.5z" fill=3D"url(#e)"/=
+></svg>
+------MultipartBoundary--UzpkfJN6WZuZmoW2wVfz7cxjIRaPSASoY1tl9LSPqn----
+Content-Type: text/css
+Content-Transfer-Encoding: quoted-printable
+Content-Location: https://www.gstatic.com/_/translate_http/_/ss/k=translate_http.tr.pgV-E-68K-A.L.W.O/am=hMA/d=0/rs=AN8SPfoMSCsz74287nno-gZmD_8fI6XKww/m=el_main_css
+
+@charset "utf-8";
+
+.VIpgJd-ZVi9od-ORHb-OEVmcd { left: 0px; top: 0px; height: 39px; width: 100%=
+; z-index: 10000001; position: fixed; border-top: none; border-right: none;=
+ border-left: none; border-image: initial; border-bottom: 1px solid rgb(107=
+, 144, 218); margin: 0px; box-shadow: rgb(153, 153, 153) 0px 0px 8px 1px; }
+
+.VIpgJd-ZVi9od-xl07Ob-OEVmcd { z-index: 10000002; border: none; position: f=
+ixed; box-shadow: rgb(153, 153, 153) 0px 3px 8px 2px; }
+
+.VIpgJd-ZVi9od-SmfZ-OEVmcd { z-index: 10000000; border: none; margin: 0px; =
+}
+
+.goog-te-gadget { font-family: arial; font-size: 11px; color: rgb(102, 102,=
+ 102); white-space: nowrap; }
+
+.goog-te-gadget img { vertical-align: middle; border: none; }
+
+.goog-te-gadget-simple { background-color: rgb(255, 255, 255); border-width=
+: 1px; border-style: solid; border-color: rgb(155, 155, 155) rgb(213, 213, =
+213) rgb(232, 232, 232); font-size: 10pt; display: inline-block; padding-to=
+p: 1px; padding-bottom: 2px; cursor: pointer; }
+
+.goog-te-gadget-icon { margin-left: 2px; margin-right: 2px; width: 19px; he=
+ight: 19px; border: none; vertical-align: middle; }
+
+.goog-te-combo { margin-left: 4px; margin-right: 4px; vertical-align: basel=
+ine; }
+
+.goog-te-gadget .goog-te-combo { margin: 4px 0px; }
+
+.VIpgJd-ZVi9od-l4eHX-hSRGPd, .VIpgJd-ZVi9od-l4eHX-hSRGPd:link, .VIpgJd-ZVi9=
+od-l4eHX-hSRGPd:visited, .VIpgJd-ZVi9od-l4eHX-hSRGPd:hover, .VIpgJd-ZVi9od-=
+l4eHX-hSRGPd:active { font-size: 12px; font-weight: bold; color: rgb(68, 68=
+, 68); text-decoration: none; }
+
+.VIpgJd-ZVi9od-ORHb .VIpgJd-ZVi9od-l4eHX-hSRGPd, .VIpgJd-ZVi9od-TvD9Pc-hSRG=
+Pd { display: block; margin: 0px 10px; }
+
+.VIpgJd-ZVi9od-ORHb .VIpgJd-ZVi9od-l4eHX-hSRGPd { padding-top: 2px; padding=
+-left: 4px; }
+
+.goog-te-combo, .VIpgJd-ZVi9od-ORHb *, .VIpgJd-ZVi9od-SmfZ *, .VIpgJd-ZVi9o=
+d-xl07Ob *, .VIpgJd-ZVi9od-vH1Gmf *, .VIpgJd-ZVi9od-l9xktf * { font-family:=
+ arial; font-size: 10pt; }
+
+.VIpgJd-ZVi9od-ORHb { margin: 0px; background-color: rgb(228, 239, 251); ov=
+erflow: hidden; }
+
+.VIpgJd-ZVi9od-ORHb img { border: none; }
+
+.VIpgJd-ZVi9od-ORHb-bN97Pc { color: rgb(0, 0, 0); }
+
+.VIpgJd-ZVi9od-ORHb-bN97Pc img { vertical-align: middle; }
+
+.VIpgJd-ZVi9od-ORHb-Tswv1b { color: rgb(102, 102, 102); vertical-align: top=
+; margin-top: 0px; font-size: 7pt; }
+
+.VIpgJd-ZVi9od-ORHb-KE6vqe { width: 8px; }
+
+.VIpgJd-ZVi9od-LgbsSe { border-color: rgb(231, 231, 231); border-style: non=
+e solid solid none; border-width: 0px 1px 1px 0px; }
+
+.VIpgJd-ZVi9od-LgbsSe div { border-color: rgb(204, 204, 204) rgb(153, 153, =
+153) rgb(153, 153, 153) rgb(204, 204, 204); border-style: solid; border-wid=
+th: 1px; height: 20px; }
+
+.VIpgJd-ZVi9od-LgbsSe button { background: transparent; border: none; curso=
+r: pointer; height: 20px; overflow: hidden; margin: 0px; vertical-align: to=
+p; white-space: nowrap; }
+
+.VIpgJd-ZVi9od-LgbsSe button:active { background: none 0px 0px repeat scrol=
+l rgb(204, 204, 204); }
+
+.VIpgJd-ZVi9od-SmfZ { margin: 0px; background-color: rgb(255, 255, 255); wh=
+ite-space: nowrap; }
+
+.VIpgJd-ZVi9od-SmfZ-hSRGPd { text-decoration: none; font-weight: bold; font=
+-size: 10pt; border: 1px outset rgb(136, 136, 136); padding: 6px 10px; whit=
+e-space: nowrap; position: absolute; left: 0px; top: 0px; }
+
+.VIpgJd-ZVi9od-SmfZ-hSRGPd img { margin-left: 2px; margin-right: 2px; width=
+: 19px; height: 19px; border: none; vertical-align: middle; }
+
+.VIpgJd-ZVi9od-SmfZ-hSRGPd span { text-decoration: underline; margin-left: =
+2px; margin-right: 2px; vertical-align: middle; }
+
+.goog-te-float-top .VIpgJd-ZVi9od-SmfZ-hSRGPd { padding: 2px; border-top-wi=
+dth: 0px; }
+
+.goog-te-float-bottom .VIpgJd-ZVi9od-SmfZ-hSRGPd { padding: 2px; border-bot=
+tom-width: 0px; }
+
+.VIpgJd-ZVi9od-xl07Ob-lTBxed { text-decoration: none; color: rgb(0, 0, 204)=
+; white-space: nowrap; margin-left: 4px; margin-right: 4px; }
+
+.VIpgJd-ZVi9od-xl07Ob-lTBxed span { text-decoration: underline; }
+
+.VIpgJd-ZVi9od-xl07Ob-lTBxed img { margin-left: 2px; margin-right: 2px; }
+
+.goog-te-gadget-simple .VIpgJd-ZVi9od-xl07Ob-lTBxed { color: rgb(0, 0, 0); =
+}
+
+.goog-te-gadget-simple .VIpgJd-ZVi9od-xl07Ob-lTBxed span { text-decoration:=
+ none; }
+
+.VIpgJd-ZVi9od-xl07Ob { background-color: rgb(255, 255, 255); text-decorati=
+on: none; border: 2px solid rgb(195, 217, 255); overflow: hidden scroll; po=
+sition: absolute; left: 0px; top: 0px; }
+
+.VIpgJd-ZVi9od-xl07Ob-ibnC6b { padding: 3px; text-decoration: none; }
+
+.VIpgJd-ZVi9od-xl07Ob-ibnC6b, .VIpgJd-ZVi9od-xl07Ob-ibnC6b:link { color: rg=
+b(0, 0, 204); background: rgb(255, 255, 255); }
+
+.VIpgJd-ZVi9od-xl07Ob-ibnC6b:visited { color: rgb(85, 26, 139); }
+
+.VIpgJd-ZVi9od-xl07Ob-ibnC6b:hover { background: rgb(195, 217, 255); }
+
+.VIpgJd-ZVi9od-xl07Ob-ibnC6b:active { color: rgb(0, 0, 204); }
+
+.VIpgJd-ZVi9od-vH1Gmf { background-color: rgb(255, 255, 255); text-decorati=
+on: none; border: 1px solid rgb(107, 144, 218); overflow: hidden; padding: =
+4px; }
+
+.VIpgJd-ZVi9od-vH1Gmf-KrhPNb { width: 16px; }
+
+.VIpgJd-ZVi9od-vH1Gmf-hgDUwe { margin: 6px 0px; height: 1px; background-col=
+or: rgb(170, 170, 170); overflow: hidden; }
+
+.VIpgJd-ZVi9od-vH1Gmf-ibnC6b div, .VIpgJd-ZVi9od-vH1Gmf-ibnC6b-gk6SMd div {=
+ padding: 4px; }
+
+.VIpgJd-ZVi9od-vH1Gmf-ibnC6b .uDEFge { display: none; }
+
+.VIpgJd-ZVi9od-vH1Gmf-ibnC6b-gk6SMd .fmcmS { padding-left: 4px; padding-rig=
+ht: 4px; }
+
+.VIpgJd-ZVi9od-vH1Gmf-ibnC6b, .VIpgJd-ZVi9od-vH1Gmf-ibnC6b-gk6SMd { text-de=
+coration: none; }
+
+.VIpgJd-ZVi9od-vH1Gmf-ibnC6b div, .VIpgJd-ZVi9od-vH1Gmf-ibnC6b:link div, .V=
+IpgJd-ZVi9od-vH1Gmf-ibnC6b:visited div, .VIpgJd-ZVi9od-vH1Gmf-ibnC6b:active=
+ div { color: rgb(0, 0, 204); background: rgb(255, 255, 255); }
+
+.VIpgJd-ZVi9od-vH1Gmf-ibnC6b:hover div { color: rgb(255, 255, 255); backgro=
+und: rgb(51, 102, 204); }
+
+.VIpgJd-ZVi9od-vH1Gmf-ibnC6b-gk6SMd div, .VIpgJd-ZVi9od-vH1Gmf-ibnC6b-gk6SM=
+d:link div, .VIpgJd-ZVi9od-vH1Gmf-ibnC6b-gk6SMd:visited div, .VIpgJd-ZVi9od=
+-vH1Gmf-ibnC6b-gk6SMd:hover div, .VIpgJd-ZVi9od-vH1Gmf-ibnC6b-gk6SMd:active=
+ div { color: rgb(0, 0, 0); font-weight: bold; }
+
+.VIpgJd-ZVi9od-l9xktf { background-color: rgb(255, 255, 255); overflow: hid=
+den; padding: 8px; border: none; border-radius: 10px; }
+
+.VIpgJd-ZVi9od-l9xktf-OEVmcd { background-color: rgb(255, 255, 255); border=
+: 1px solid rgb(107, 144, 218); box-shadow: rgb(153, 153, 153) 0px 3px 8px =
+2px; border-radius: 8px; }
+
+.VIpgJd-ZVi9od-l9xktf img { border: none; }
+
+.VIpgJd-ZVi9od-l9xktf-fmcmS { margin-top: 6px; }
+
+.VIpgJd-ZVi9od-l9xktf-VgwJlc { margin-top: 6px; white-space: nowrap; }
+
+.VIpgJd-ZVi9od-l9xktf-VgwJlc * { vertical-align: middle; }
+
+.VIpgJd-ZVi9od-l9xktf-VgwJlc .DUGJie { background-image: url("https://www&g=
+oogle.com/images/zippy_minus_sm.gif"); }
+
+.VIpgJd-ZVi9od-l9xktf-VgwJlc .TdyTDe { background-image: url("https://www&g=
+oogle.com/images/zippy_plus_sm.gif"); }
+
+.VIpgJd-ZVi9od-l9xktf-VgwJlc span { color: rgb(0, 0, 204); text-decoration:=
+ underline; cursor: pointer; margin: 0px 4px; }
+
+.VIpgJd-ZVi9od-l9xktf-I9GLp { margin: 6px 0px 0px; }
+
+.VIpgJd-ZVi9od-l9xktf-I9GLp form { margin: 0px; }
+
+.VIpgJd-ZVi9od-l9xktf-I9GLp form textarea { margin-bottom: 4px; width: 100%=
+; }
+
+.VIpgJd-ZVi9od-l9xktf-yePe5c { margin: 6px 0px 4px; }
+
+.VIpgJd-ZVi9od-aZ2wEe-wOHMyf { z-index: 1000; position: fixed; transition-d=
+elay: 0.6s; left: -1000px; top: -1000px; }
+
+.VIpgJd-ZVi9od-aZ2wEe-wOHMyf-ti6hGc { transition-delay: 0s; left: -14px; to=
+p: -14px; }
+
+.VIpgJd-ZVi9od-aZ2wEe-OiiCO { display: flex; -webkit-box-align: center; ali=
+gn-items: center; -webkit-box-pack: center; justify-content: center; width:=
+ 104px; height: 104px; border-radius: 50px; background: url("https://www.gs=
+tatic.com/images/branding/product/2x/translate_24dp.png") 50% 50% no-repeat=
+ rgb(255, 255, 255); transition: 0.6s ease-in-out; transform: scale(0.4); o=
+pacity: 0; }
+
+.VIpgJd-ZVi9od-aZ2wEe-OiiCO-ti6hGc { transform: scale(0.5); opacity: 1; }
+
+.VIpgJd-ZVi9od-aZ2wEe { margin: 2px 0px 0px 2px; animation: 1.4s linear 0s =
+infinite normal none running spinner-rotator; }
+
+@-webkit-keyframes spinner-rotator {=20
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(270deg); }
+}
+
+@keyframes spinner-rotator {=20
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(270deg); }
+}
+
+.VIpgJd-ZVi9od-aZ2wEe-Jt5cK { stroke-dasharray: 187; stroke-dashoffset: 0; =
+stroke: rgb(66, 133, 244); transform-origin: center center; animation: 1.4s=
+ ease-in-out 0s infinite normal none running spinner-dash; }
+
+@-webkit-keyframes spinner-dash {=20
+  0% { stroke-dashoffset: 187; }
+  50% { stroke-dashoffset: 46.75; transform: rotate(135deg); }
+  100% { stroke-dashoffset: 187; transform: rotate(450deg); }
+}
+
+@keyframes spinner-dash {=20
+  0% { stroke-dashoffset: 187; }
+  50% { stroke-dashoffset: 46.75; transform: rotate(135deg); }
+  100% { stroke-dashoffset: 187; transform: rotate(450deg); }
+}
+
+.VIpgJd-yAWNEb-L7lbkb html, .VIpgJd-yAWNEb-L7lbkb body, .VIpgJd-yAWNEb-L7lb=
+kb div, .VIpgJd-yAWNEb-L7lbkb span, .VIpgJd-yAWNEb-L7lbkb iframe, .VIpgJd-y=
+AWNEb-L7lbkb h1, .VIpgJd-yAWNEb-L7lbkb h2, .VIpgJd-yAWNEb-L7lbkb h3, .VIpgJ=
+d-yAWNEb-L7lbkb h4, .VIpgJd-yAWNEb-L7lbkb h5, .VIpgJd-yAWNEb-L7lbkb h6, .VI=
+pgJd-yAWNEb-L7lbkb p, .VIpgJd-yAWNEb-L7lbkb a, .VIpgJd-yAWNEb-L7lbkb img, .=
+VIpgJd-yAWNEb-L7lbkb ol, .VIpgJd-yAWNEb-L7lbkb ul, .VIpgJd-yAWNEb-L7lbkb li=
+, .VIpgJd-yAWNEb-L7lbkb table, .VIpgJd-yAWNEb-L7lbkb form, .VIpgJd-yAWNEb-L=
+7lbkb tbody, .VIpgJd-yAWNEb-L7lbkb tr, .VIpgJd-yAWNEb-L7lbkb td { color-sch=
+eme: unset; forced-color-adjust: unset; mask: unset; math-depth: unset; pos=
+ition: unset; position-anchor: unset; text-size-adjust: unset; appearance: =
+unset; color: unset; font-family: unset; font-feature-settings: unset; font=
+-kerning: unset; font-optical-sizing: unset; font-palette: unset; font-size=
+: 100%; font-size-adjust: unset; font-stretch: unset; font-style: unset; fo=
+nt-synthesis: unset; font-variant: unset; font-variation-settings: unset; f=
+ont-weight: unset; position-area: unset; text-orientation: unset; text-rend=
+ering: unset; text-spacing-trim: unset; -webkit-font-smoothing: unset; -web=
+kit-locale: unset; -webkit-text-orientation: unset; -webkit-writing-mode: u=
+nset; writing-mode: unset; zoom: unset; accent-color: unset; place-content:=
+ unset; place-items: unset; place-self: unset; alignment-baseline: unset; a=
+nchor-name: unset; anchor-scope: unset; animation-composition: unset; anima=
+tion: unset; app-region: unset; aspect-ratio: unset; backdrop-filter: unset=
+; backface-visibility: unset; background: unset; background-blend-mode: uns=
+et; baseline-shift: unset; baseline-source: unset; block-size: unset; borde=
+r-block: unset; border: unset; border-radius: unset; border-collapse: unset=
+; border-end-end-radius: unset; border-end-start-radius: unset; border-inli=
+ne: unset; border-start-end-radius: unset; border-start-start-radius: unset=
+; inset: unset; box-decoration-break: unset; box-shadow: unset; box-sizing:=
+ unset; break-after: unset; break-before: unset; break-inside: unset; buffe=
+red-rendering: unset; caption-side: unset; caret-color: unset; clear: unset=
+; clip: unset; clip-path: unset; clip-rule: unset; color-interpolation: uns=
+et; color-interpolation-filters: unset; color-rendering: unset; columns: un=
+set; column-fill: unset; gap: unset; column-rule: unset; column-span: unset=
+; contain: unset; contain-intrinsic-block-size: unset; contain-intrinsic-si=
+ze: unset; contain-intrinsic-inline-size: unset; container: unset; content:=
+ unset; content-visibility: unset; counter-increment: unset; counter-reset:=
+ unset; counter-set: unset; cursor: unset; cx: unset; cy: unset; d: unset; =
+display: unset; dominant-baseline: unset; dynamic-range-limit: unset; empty=
+-cells: unset; field-sizing: unset; fill: unset; fill-opacity: unset; fill-=
+rule: unset; filter: unset; flex: unset; flex-flow: unset; float: unset; fl=
+ood-color: unset; flood-opacity: unset; grid: unset; grid-area: unset; heig=
+ht: unset; hyphenate-character: unset; hyphenate-limit-chars: unset; hyphen=
+s: unset; image-orientation: unset; image-rendering: unset; initial-letter:=
+ unset; inline-size: unset; inset-block: unset; inset-inline: unset; interp=
+olate-size: unset; isolation: unset; letter-spacing: unset; lighting-color:=
+ unset; line-break: unset; line-height: normal; list-style: unset; margin-b=
+lock: unset; margin: unset; margin-inline: unset; marker: unset; mask-type:=
+ unset; math-shift: unset; math-style: unset; max-block-size: unset; max-he=
+ight: unset; max-inline-size: unset; max-width: unset; min-block-size: unse=
+t; min-height: unset; min-inline-size: unset; min-width: unset; mix-blend-m=
+ode: unset; object-fit: unset; object-position: unset; object-view-box: uns=
+et; offset: unset; opacity: unset; order: unset; orphans: unset; outline: u=
+nset; outline-offset: unset; overflow-anchor: unset; overflow-block: unset;=
+ overflow-clip-margin: unset; overflow-inline: unset; overflow-wrap: unset;=
+ overflow: unset; overlay: unset; overscroll-behavior-block: unset; overscr=
+oll-behavior-inline: unset; overscroll-behavior: unset; padding-block: unse=
+t; padding: unset; padding-inline: unset; page: unset; page-orientation: un=
+set; paint-order: unset; perspective: unset; perspective-origin: unset; poi=
+nter-events: unset; position-try: unset; position-visibility: unset; print-=
+color-adjust: unset; quotes: unset; r: unset; reading-flow: unset; reading-=
+order: unset; resize: unset; rotate: unset; ruby-align: unset; ruby-positio=
+n: unset; rx: unset; ry: unset; scale: unset; scroll-behavior: unset; scrol=
+l-initial-target: unset; scroll-margin-block: unset; scroll-margin: unset; =
+scroll-margin-inline: unset; scroll-marker-group: unset; scroll-padding-blo=
+ck: unset; scroll-padding: unset; scroll-padding-inline: unset; scroll-snap=
+-align: unset; scroll-snap-stop: unset; scroll-snap-type: unset; scroll-tim=
+eline: unset; scrollbar-color: unset; scrollbar-gutter: unset; scrollbar-wi=
+dth: unset; shape-image-threshold: unset; shape-margin: unset; shape-outsid=
+e: unset; shape-rendering: unset; size: unset; speak: unset; stop-color: un=
+set; stop-opacity: unset; stroke: unset; stroke-dasharray: unset; stroke-da=
+shoffset: unset; stroke-linecap: unset; stroke-linejoin: unset; stroke-mite=
+rlimit: unset; stroke-opacity: unset; stroke-width: unset; tab-size: unset;=
+ table-layout: unset; text-align: unset; text-align-last: unset; text-ancho=
+r: unset; text-box: unset; text-combine-upright: unset; text-decoration: un=
+set; text-decoration-skip-ink: unset; text-emphasis: unset; text-emphasis-p=
+osition: unset; text-indent: unset; text-overflow: unset; text-shadow: unse=
+t; text-transform: unset; text-underline-offset: unset; text-underline-posi=
+tion: unset; text-wrap: unset; timeline-scope: unset; touch-action: unset; =
+transform: unset; transform-box: unset; transform-origin: unset; transform-=
+style: unset; transition: unset; translate: unset; user-select: unset; vect=
+or-effect: unset; vertical-align: unset; view-timeline: unset; view-transit=
+ion-class: unset; view-transition-name: unset; visibility: unset; border-sp=
+acing: unset; -webkit-box-align: unset; -webkit-box-decoration-break: unset=
+; -webkit-box-direction: unset; -webkit-box-flex: unset; -webkit-box-ordina=
+l-group: unset; -webkit-box-orient: unset; -webkit-box-pack: unset; -webkit=
+-box-reflect: unset; -webkit-line-break: unset; -webkit-line-clamp: unset; =
+-webkit-mask-box-image: unset; -webkit-rtl-ordering: unset; -webkit-ruby-po=
+sition: unset; -webkit-tap-highlight-color: unset; -webkit-text-combine: un=
+set; -webkit-text-decorations-in-effect: unset; -webkit-text-fill-color: un=
+set; -webkit-text-security: unset; -webkit-text-stroke: unset; -webkit-user=
+-drag: unset; white-space-collapse: unset; widows: unset; width: unset; wil=
+l-change: unset; word-break: unset; word-spacing: unset; x: unset; y: unset=
+; z-index: unset; }
+
+.VIpgJd-yAWNEb-L7lbkb ol, .VIpgJd-yAWNEb-L7lbkb ul { list-style: none; }
+
+.VIpgJd-yAWNEb-L7lbkb table { border-collapse: collapse; border-spacing: 0p=
+x; }
+
+.VIpgJd-yAWNEb-L7lbkb caption, .VIpgJd-yAWNEb-L7lbkb th, .VIpgJd-yAWNEb-L7l=
+bkb td { text-align: left; font-weight: normal; }
+
+div > .VIpgJd-yAWNEb-L7lbkb { padding: 10px 14px; }
+
+.VIpgJd-yAWNEb-L7lbkb { color: rgb(34, 34, 34); background-color: rgb(255, =
+255, 255); border: 1px solid rgb(238, 238, 238); box-shadow: rgba(0, 0, 0, =
+0.2) 0px 4px 16px; display: none; font-family: arial; font-size: 10pt; widt=
+h: 420px; padding: 12px; position: absolute; z-index: 10000; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-nVMfcd-fmcmS, .VIpgJd-yAWNEb-yAWNEb-Vy=
+2Aqc-pbTTYe { clear: both; font-size: 10pt; position: relative; text-align:=
+ justify; width: 100%; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-r4nke { color: rgb(153, 153, 153); fon=
+t-family: arial, sans-serif; margin: 4px 0px; text-align: left; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-TvD9Pc-LgbsSe { display: none; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-l4eHX { float: left; margin: 0px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-Z0Arqf-PLDbbf { display: inline-block;=
+ }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-fw42Ze-Z0Arqf-haAclf { display: none; =
+width: 100%; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-Z0Arqf-H9tDt { margin-top: 20px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-LK5yu { float: left; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-qwU8Me { float: right; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-cGMI2b { min-height: 15px; position: r=
+elative; height: 1%; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-jOfkMb-Ne3sFf { background: rgb(41, 14=
+5, 13); border-radius: 4px; box-shadow: rgb(30, 102, 9) 0px 2px 2px inset; =
+color: white; font-size: 9pt; font-weight: bolder; margin-top: 12px; paddin=
+g: 6px; text-shadow: rgb(30, 102, 9) 1px 1px 1px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-Z0Arqf-hSRGPd { color: rgb(17, 85, 204=
+); cursor: pointer; font-family: arial; font-size: 11px; margin-right: 15px=
+; text-decoration: none; }
+
+.VIpgJd-yAWNEb-L7lbkb > textarea { font-family: arial; resize: vertical; wi=
+dth: 100%; margin-bottom: 10px; border-radius: 1px; border-width: 1px; bord=
+er-style: solid; border-color: silver rgb(217, 217, 217) rgb(217, 217, 217)=
+; border-image: initial; font-size: 13px; height: auto; overflow-y: auto; p=
+adding: 1px; }
+
+.VIpgJd-yAWNEb-L7lbkb textarea:focus { box-shadow: rgba(0, 0, 0, 0.3) 0px 1=
+px 2px inset; border: 1px solid rgb(77, 144, 254); outline: none; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-Z0Arqf-IbE0S { margin-right: 10px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp { min-height: 25px; verti=
+cal-align: middle; padding-top: 8px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9G=
+Lp { margin-bottom: 0px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9G=
+Lp input { display: inline-block; min-width: 54px; border: 1px solid rgba(0=
+, 0, 0, 0.1); text-align: center; color: rgb(68, 68, 68); font-size: 11px; =
+font-weight: bold; height: 27px; outline: 0px; padding: 0px 8px; vertical-a=
+lign: middle; line-height: 27px; margin: 0px 16px 0px 0px; box-shadow: rgba=
+(0, 0, 0, 0.1) 0px 1px 2px; border-radius: 2px; transition: 0.218s; backgro=
+und-color: rgb(245, 245, 245); background-image: -webkit-linear-gradient(to=
+p, rgb(245, 245, 245), rgb(241, 241, 241)); user-select: none; cursor: defa=
+ult; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9G=
+Lp input:hover { border: 1px solid rgb(198, 198, 198); color: rgb(34, 34, 3=
+4); transition: all; background-color: rgb(248, 248, 248); background-image=
+: -webkit-linear-gradient(top, rgb(248, 248, 248), rgb(241, 241, 241)); }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9G=
+Lp input:active { border: 1px solid rgb(198, 198, 198); color: rgb(51, 51, =
+51); background-color: rgb(246, 246, 246); background-image: -webkit-linear=
+-gradient(top, rgb(246, 246, 246), rgb(241, 241, 241)); }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9G=
+Lp input:focus .VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yA=
+WNEb-Z0Arqf-I9GLp input.AHmuwe .VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-=
+I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9GLp input:active, .VIpgJd-yAWNEb-L7lbkb .VIpg=
+Jd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9GLp input:focus:active { box=
+-shadow: rgba(255, 255, 255, 0.5) 0px 0px 0px 1px inset; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9G=
+Lp input:focus, .VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-y=
+AWNEb-Z0Arqf-I9GLp input.AHmuwe { outline: none; border: 1px solid rgb(77, =
+144, 254); z-index: 4 !important; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9G=
+Lp input.gk6SMd { background-color: rgb(238, 238, 238); background-image: -=
+webkit-linear-gradient(top, rgb(238, 238, 238), rgb(224, 224, 224)); box-sh=
+adow: rgba(0, 0, 0, 0.1) 0px 1px 2px inset; border: 1px solid rgb(204, 204,=
+ 204); color: rgb(51, 51, 51); }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9G=
+Lp input .VIpgJd-yAWNEb-Z0Arqf-sFeBqf { color: white; border-color: rgb(48,=
+ 121, 237); background-color: rgb(77, 144, 254); background-image: -webkit-=
+linear-gradient(top, rgb(77, 144, 254), rgb(71, 135, 237)); }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9G=
+Lp input .VIpgJd-yAWNEb-Z0Arqf-sFeBqf:hover .VIpgJd-yAWNEb-L7lbkb .VIpgJd-y=
+AWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9GLp input .VIpgJd-yAWNEb-Z0Arqf-=
+sFeBqf:focus, .VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAW=
+NEb-Z0Arqf-I9GLp input .VIpgJd-yAWNEb-Z0Arqf-sFeBqf.AHmuwe .VIpgJd-yAWNEb-L=
+7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9GLp input .VIpgJd=
+-yAWNEb-Z0Arqf-sFeBqf:active { border-color: rgb(48, 121, 237); background-=
+color: rgb(53, 122, 232); background-image: -webkit-linear-gradient(top, rg=
+b(77, 144, 254), rgb(53, 122, 232)); }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9G=
+Lp input .VIpgJd-yAWNEb-Z0Arqf-sFeBqf:hover { box-shadow: rgb(255, 255, 255=
+) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0.1) 0px 1px 1px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9G=
+Lp input:focus, .VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-y=
+AWNEb-Z0Arqf-I9GLp input.AHmuwe, .VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5=
+e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9GLp input:active, .VIpgJd-yAWNEb-L7lbkb .VI=
+pgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9GLp input:hover, .VIpgJd-y=
+AWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9GLp input =
+.VIpgJd-yAWNEb-Z0Arqf-sFeBqf:focus, .VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4=
+Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9GLp input .VIpgJd-yAWNEb-Z0Arqf-sFeBqf.A=
+Hmuwe, .VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0A=
+rqf-I9GLp input .VIpgJd-yAWNEb-Z0Arqf-sFeBqf:active, .VIpgJd-yAWNEb-L7lbkb =
+.VIpgJd-yAWNEb-L4Nn5e-I9GLp .VIpgJd-yAWNEb-Z0Arqf-I9GLp input .VIpgJd-yAWNE=
+b-Z0Arqf-sFeBqf:hover { border-color: rgb(48, 121, 237); }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-mrxPge { color: rgb(153, 153, 153); fo=
+nt-family: arial, sans-serif; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-IFdKyd-W0vJo-fmcmS { color: rgb(153, 1=
+53, 153); font-size: 11px; font-family: arial, sans-serif; margin: 15px 0px=
+ 5px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-IFdKyd-u0pjoe-fmcmS { color: rgb(136, =
+0, 0); display: none; font-size: 9pt; }
+
+.VIpgJd-yAWNEb-VIpgJd-fmcmS-sn54Q { background-color: rgb(201, 215, 241); b=
+ox-shadow: rgb(153, 153, 170) 2px 2px 4px; box-sizing: border-box; position=
+: relative; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-IFdKyd-xl07Ob .VIpgJd-yAWNEb-VIpgJd-xl=
+07Ob { background: rgb(255, 255, 255); border: 1px solid rgb(221, 221, 221)=
+; box-shadow: rgb(153, 153, 170) 0px 2px 4px; min-width: 0px; outline: none=
+; padding: 0px; position: absolute; z-index: 2000; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-IFdKyd-xl07Ob .VIpgJd-yAWNEb-VIpgJd-j7=
+LFlb { cursor: pointer; padding: 2px 5px 5px; margin-right: 0px; border-sty=
+le: none; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-IFdKyd-xl07Ob .VIpgJd-yAWNEb-VIpgJd-j7=
+LFlb:hover { background: rgb(221, 221, 221); }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-IFdKyd-xl07Ob .VIpgJd-yAWNEb-VIpgJd-j7=
+LFlb h1 { font-size: 100%; font-weight: bold; margin: 4px 0px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-IFdKyd-xl07Ob .VIpgJd-yAWNEb-VIpgJd-j7=
+LFlb strong { color: rgb(52, 90, 173); }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-VIpgJd-eKm5Fc-hFsbo { text-align: righ=
+t; position: absolute; right: 0px; left: auto; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-VIpgJd-j7LFlb-SIsrTd .VIpgJd-yAWNEb-VI=
+pgJd-eKm5Fc-hFsbo { text-align: left; position: absolute; left: 0px; right:=
+ auto; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-yAWNEb-Vy2Aqc-fmcmS, .VIpgJd-yAWNEb-L7=
+lbkb .VIpgJd-yAWNEb-TVLw9c-ppHlrf-sn54Q { background-color: rgb(241, 234, 0=
+); border-radius: 4px; box-shadow: rgba(0, 0, 0, 0.5) 3px 3px 4px; box-sizi=
+ng: border-box; color: rgb(241, 234, 0); cursor: pointer; margin: -2px -2px=
+ -2px -3px; padding: 2px 2px 2px 3px; position: relative; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-TVLw9c-ppHlrf-sn54Q { color: rgb(34, 3=
+4, 34); }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-yAWNEb-Vy2Aqc-pbTTYe { color: white; p=
+osition: absolute !important; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-TVLw9c-ppHlrf, .VIpgJd-yAWNEb-L7lbkb .=
+VIpgJd-yAWNEb-TVLw9c-ppHlrf .VIpgJd-yAWNEb-TVLw9c-ppHlrf-sn54Q { background=
+-color: rgb(201, 215, 241); border-radius: 4px 4px 0px 0px; box-shadow: rgb=
+a(0, 0, 0, 0.5) 3px 3px 4px; box-sizing: border-box; cursor: pointer; margi=
+n: -2px -2px -2px -3px; padding: 2px 2px 3px 3px; position: relative; }
+
+.VIpgJd-yAWNEb-L7lbkb span:focus { outline: none; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-TVLw9c-DyVDA { background-color: trans=
+parent; border: 1px solid rgb(77, 144, 254); border-radius: 0px; margin: -2=
+px; padding: 1px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-yAWNEb-TVLw9c-sn54Q-LzX3ef { border-le=
+ft: 2px solid red; margin-left: -2px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-yAWNEb-TVLw9c-sn54Q-YIAiIb { border-ri=
+ght: 2px solid red; margin-right: -2px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-IFdKyd-YPqjbf { padding: 2px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-IFdKyd-YPqjbf-fmcmS { font-size: 11px;=
+ padding: 2px 2px 3px; margin: 0px; background-color: rgb(255, 255, 255); c=
+olor: rgb(51, 51, 51); border-width: 1px; border-style: solid; border-color=
+: rgb(192, 192, 192) rgb(217, 217, 217) rgb(217, 217, 217); border-image: i=
+nitial; display: inline-block; vertical-align: top; height: 21px; box-sizin=
+g: border-box; border-radius: 1px; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-IFdKyd-YPqjbf-fmcmS:hover { border-wid=
+th: 1px; border-style: solid; border-color: rgb(160, 160, 160) rgb(185, 185=
+, 185) rgb(185, 185, 185); border-image: initial; box-shadow: rgba(0, 0, 0,=
+ 0.1) 0px 1px 2px inset; }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-IFdKyd-YPqjbf-fmcmS:focus { box-shadow=
+: rgba(0, 0, 0, 0.3) 0px 1px 2px inset; outline: none; border: 1px solid rg=
+b(77, 144, 254); }
+
+.VIpgJd-yAWNEb-L7lbkb .VIpgJd-yAWNEb-IFdKyd-YPqjbf-sFeBqf { font-size: 11px=
+; padding: 2px 6px 3px; margin: 0px 0px 0px 2px; height: 21px; }
+
+.VIpgJd-yAWNEb-L7lbkb > div { display: flex; -webkit-box-orient: vertical; =
+-webkit-box-direction: normal; flex-direction: column; font-family: "Google=
+ Sans", Arial, sans-serif; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-Ud7fr { display: flex; -webkit-=
+box-align: end; align-items: end; margin: 14px; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-IuizWc-SIsrTd { margin-right: 1=
+4px; color: rgb(116, 119, 117); font-size: 14px; font-weight: 500; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-IuizWc-i3jM8c { margin-left: 14=
+px; color: rgb(116, 119, 117); font-size: 14px; font-weight: 500; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-k77Iif { margin: 0px 16px 16px;=
+ }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-axAV1 { width: auto; color: rgb=
+(31, 31, 31); font-size: 16px; text-align: initial; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-axAV1 .VIpgJd-yAWNEb-SIsrTd { t=
+ext-align: right; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-N7Eqid { border-radius: 0px 0px=
+ 12px 12px; margin: 0px; background: rgb(241, 244, 249); position: relative=
+; min-height: 50px; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-N7Eqid .VIpgJd-yAWNEb-SIsrTd { =
+text-align: right; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-N7Eqid-B7I4Od { display: flex; =
+-webkit-box-orient: vertical; -webkit-box-direction: normal; flex-direction=
+: column; width: 77%; padding: 12px; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-N7Eqid-B7I4Od .VIpgJd-yAWNEb-SI=
+srTd { text-align: right; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-UTujCb { color: rgb(31, 31, 31)=
+; font-size: 12px; font-weight: 500; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-N7Eqid-B7I4Od .VIpgJd-yAWNEb-SI=
+srTd .VIpgJd-yAWNEb-hvhgNd-UTujCb { text-align: right; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-eO9mKe { color: rgb(68, 71, 70)=
+; font-size: 12px; padding-top: 4px; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-N7Eqid-B7I4Od .VIpgJd-yAWNEb-SI=
+srTd .VIpgJd-yAWNEb-hvhgNd-eO9mKe { text-align: right; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-xgov5 { position: absolute; top=
+: 10px; right: 5px; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-xgov5 .VIpgJd-yAWNEb-SIsrTd { l=
+eft: 5px; right: auto; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-THI6Vb { fill: rgb(11, 87, 208)=
+; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-bgm6sf { margin: -4px 2px 0px 0=
+px; padding: 2px 0px 0px; width: 48px; height: 48px; border: none; border-r=
+adius: 24px; cursor: pointer; background: none; }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-bgm6sf:hover { background: rgb(=
+232, 235, 236); }
+
+.VIpgJd-yAWNEb-hvhgNd .VIpgJd-yAWNEb-hvhgNd-aXYTce { display: none; }
+
+sentinel { }
+------MultipartBoundary--UzpkfJN6WZuZmoW2wVfz7cxjIRaPSASoY1tl9LSPqn----
+Content-Type: text/css
+Content-Transfer-Encoding: quoted-printable
+Content-Location: https://pdos.csail.mit.edu/6.824/style.css
+
+@charset "windows-1252";
+
+body { max-width: 45em; }
+
+body pre { overflow-x: auto; }
+
+body { color: black; background-color: white; font-family: sans-serif; }
+
+.title { text-align: center; }
+
+.subtitle { text-align: center; font-style: italic; }
+
+.author { text-align: center; }
+
+ul.hints, .note, .challenge, .todo, pre { margin: 1em; border: 1px dashed; =
+padding: 1em; }
+
+ul.hints { color: rgb(80, 160, 45); }
+
+ul.hints li { margin-left: 1em; }
+
+ul.hints li::before { content: "Hint: "; font-weight: bold; }
+
+.important { margin: 1em; padding: 1em; background-color: rgb(153, 0, 0); c=
+olor: rgb(255, 255, 255); }
+
+.important::before { content: "Important: "; background-color: rgb(85, 0, 0=
+); width: 100%; display: block; margin: -1em -1em 1em; padding: 1em; font-w=
+eight: bold; }
+
+.note { color: rgb(70, 130, 180); }
+
+.note::before { content: "Note: "; font-weight: bold; }
+
+.challenge, .todo { border-style: solid; }
+
+.challenge::before, .todo::before { float: right; font-weight: bold; color:=
+ white; margin: -1em -1em 0.5em 1em; padding: 0.5em 1em; }
+
+.todo { color: rgb(178, 34, 34); }
+
+.todo::before { content: "TASK"; background: rgb(178, 34, 34); }
+
+.challenge { color: rgb(139, 69, 19); }
+
+.challenge::before { content: "CHALLENGE"; background: rgb(139, 69, 19); }
+
+tt, code { font-family: monospace; border-radius: 3px; font-size: 110%; col=
+or: rgb(101, 123, 131); background-color: rgb(253, 246, 227); padding: 0px =
+0.2em; overflow-wrap: break-word; }
+
+pre { font-size: 100%; color: rgb(131, 148, 150); background: rgb(0, 43, 54=
+); }
+
+.classic { color: black; }
+
+div.required .header { font-weight: bold; }
+
+div.challenge .header { font-style: italic; }
+
+div.required { background-color: rgb(238, 238, 255); }
+
+.easy { color: rgb(0, 204, 0); }
+
+.moderate { color: rgb(0, 102, 255); }
+
+.hard { color: rgb(255, 51, 0); }
+
+.center { display: block; margin-left: auto; margin-right: auto; width: 50%=
+; }
+------MultipartBoundary--UzpkfJN6WZuZmoW2wVfz7cxjIRaPSASoY1tl9LSPqn----
+Content-Type: text/html
+Content-ID: <frame-68BCFDDD9273AC438F0D8500BF108C8D@mhtml.blink>
+Content-Transfer-Encoding: quoted-printable
+
+<html><head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=
+=3DUTF-8"></head><body></body></html>
+------MultipartBoundary--UzpkfJN6WZuZmoW2wVfz7cxjIRaPSASoY1tl9LSPqn------
