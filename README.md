@@ -1,9 +1,14 @@
 # MIT 6.5840 Distributed Systems Spring 2025
 
-[6.5840 Schedule: Spring 2025](https://pdos.csail.mit.edu/6.824/schedule.html)
+## Setup
+
+```bash
+brew install poppler
+```
 
 ## Lectures
 
+[6.5840 Schedule: Spring 2025](https://pdos.csail.mit.edu/6.824/schedule.html)
 [Lab guidance](https://pdos.csail.mit.edu/6.824/labs/guidance.html)
 
 - [ ] Lecture 1: Introduction
@@ -32,9 +37,3 @@
   - [x] [FAQ](lectures/04/linearizability-faq.txt)
   - [x] [Testing Distributed Systems for Linearizability](https://anishathalye.com/testing-distributed-systems-for-linearizability/)
   - [x] [Paper Questions](lectures/04/questions.md)
-
-## Setup
-
-```bash
-brew install poppler
-```
