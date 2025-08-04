@@ -9,16 +9,15 @@
   - [x] [MapReduce: Simplified Data Processing on Large Clusters](lectures/01/mapreduce.pdf)
   - [x] [Video](https://youtu.be/WtZ7pcRSkOA?si=VU9nhFMlDNbbx08N)
   - [ ] [Lab1: MapReduce](https://pdos.csail.mit.edu/6.824/labs/lab-mr.html)
-- [ ] Lecture 2: RPC and Threads
+- [x] Lecture 2: RPC and Threads
+  - [x] [A Tour of Go Concurrency](https://go.dev/tour/concurrency/1)
+  - [x] [Question](lectures/02/question.md) & Read `crawler.go`
+  - [x] Read `kv.go`
+  - [x] Read `condvar/vote-count-*.go`
+    - [x] `go run -race vote-count-1.go`
   - [x] [Lecture Note](lectures/02/l-rpc.txt)
   - [x] [FAQ](lectures/02/tour-faq.txt)
   - [x] [Video](https://youtu.be/oZR76REwSyA?si=ujUaFr8AePOjSzWn)
-  - [ ] [Question](lectures/02/question.md)
-    - condvar以下のコードを読み、条件変数の使い方を理解する＆自分でも書けるようにする
-    - `go run -race vote-count-1.go`
-    - 課された課題をやる(クローラーの実装とRPCパッケージの理解)
-    - Lecture Noteと一緒にcrawler.goとkv.goを読む
-    - 再度FAQを読んでちゃんと全て理解する
 - [ ] Lecture 3: Primary-Backup Replication
   - [x] [Lecture Note](lectures/03/l-vm-ft.txt)
   - [x] [FAQ](lectures/03/vm-ft-faq.txt)
