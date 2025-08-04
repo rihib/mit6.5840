@@ -4,6 +4,8 @@
 
 ## Lectures
 
+[Lab guidance](https://pdos.csail.mit.edu/6.824/labs/guidance.html)
+
 - [ ] Lecture 1: Introduction
   - [x] [Lecture Note](lectures/01/l01.txt)
   - [x] [MapReduce: Simplified Data Processing on Large Clusters](lectures/01/mapreduce.pdf)
