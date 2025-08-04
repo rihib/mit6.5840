@@ -28,7 +28,7 @@ func Worker(mapf func(string, string) []KeyValue,
 	// Your worker implementation here.
 
 	// uncomment to send the Example RPC to the coordinator.
-	CallExample()
+	// CallExample()
 }
 
 // example function to show how to make an RPC call to the coordinator.
