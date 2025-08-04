@@ -16,6 +16,27 @@ brew install poppler
   - [x] [MapReduce: Simplified Data Processing on Large Clusters](lectures/01/mapreduce.pdf)
   - [x] [Video](https://youtu.be/WtZ7pcRSkOA?si=VU9nhFMlDNbbx08N)
   - [ ] [Lab1: MapReduce](https://pdos.csail.mit.edu/6.824/labs/lab-mr.html)
+    - [x] Run & Read `src/main/mrsequential.go`
+    - [x] Read `src/mrapps/wc.go`
+    - [x] Read & Run `src/main/mrcoordinator.go` & `src/main/mrworker.go` & `src/mr/*.go`
+      - How to run:
+        1. Uncomment `CallExample()` in `src/mr/worker.go`
+        2. Run below:
+
+          ```bash
+          go run mrcoordinator.go pg-*.txt
+
+          # Open a new terminal
+          go build -buildmode=plugin ../mrapps/wc.go
+          go run mrworker.go wc.so
+          ```
+
+    - [x] Try to run `src/main/test-mr.sh`
+    - [ ] Implement `src/mr/*.go`
+    - [ ] Run `mrcoordinator.go` & `mrworker.go` with `-race` flag
+    - [ ] Run `src/main/test-mr.sh`
+    - [ ] Run with `src/mrapps/crash.go`
+    - [ ] Run `src/main/test-mr-many.sh`
 - [x] Lecture 2: RPC and Threads
   - [x] [A Tour of Go Concurrency](https://go.dev/tour/concurrency/1)
   - [x] [Question](lectures/02/question.md) & Read `crawler.go`
