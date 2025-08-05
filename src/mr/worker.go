@@ -18,26 +18,29 @@ func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
 	// Your worker implementation here.
+	// タスク要求
 	// コーディネータにタスクを要求する RPC を送信
+	// コーディネータに定期的にタスク要求を送信
+	// 各リクエストの間にtime.Sleep()でスリープする
 
 	// Map
 	// coordinatorからファイル名を返されたら、それを入力としてMap関数を呼び出してnReduce個の中間ファイルを生成
 	// workerは中間Map出力を現在のディレクトリ内のファイルに格納する必要がある
 	// 中間ファイルの適切な命名規則はmr-XY（XはMapタスク番号、Yはreduceタスク番号）
+	// 書き込み途中でクラッシュした際は書き込み途中のファイルが使われるのを防ぐために、os.CreateTempを使って一時ファイルを作成して書き込みを行い、書き込みが完了したらos.Renameを使用してアトミックに名前を変更する
 	// Reduceタスク番号はihash(key) % nReduceで求められる
 	// reduceタスクで中間ファイルの内容を読み取りやすくするために、encoding/jsonパッケージを使用してJSON形式でkey/valueを書き込む
-
-	// mapタスクが全て完了するまでコーディネータに定期的にタスク要求を送信
-	// mapタスクが全て完了するまでreduceタスクを開始できない
-	// 各リクエストの間にtime.Sleep()でスリープする
+	// mapf(filename, content string) intermediate []KeyValue を呼び出して、中間結果をメモリ上に保持し、keyでソートしてから、中間ファイルに書き込む
 
 	// Reduce
-	// Reduce関数を呼び出して結果を生成
+	// coordinatorからReduceタスク番号を返されたら、Reduce関数を呼び出して結果を生成
 	// workerは中間ファイルをReduceタスクへの入力として読み取る
 	// X番目のreduceタスクの出力をmr-out-Xファイルに書き込む
 	// "%v %v\n"の形式でkeyとvalueを書き込む
+	// reducef(key string, values []string) output string を呼び出してファイルに書き込む
 	// 書き込み途中でクラッシュした際は書き込み途中のファイルが使われるのを防ぐために、os.CreateTempを使って一時ファイルを作成して書き込みを行い、書き込みが完了したらos.Renameを使用してアトミックに名前を変更する
 
+	// 終了
 	// ジョブが完全に終了したらworkerプロセスを終了させる
 	// call()の戻り値を使って簡単に実装できる
 	// ワーカーがコーディネータへの接続に失敗した場合、ジョブが完了したためコーディネータが終了したとみなし、ワーカーも終了できる

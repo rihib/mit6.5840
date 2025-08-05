@@ -20,8 +20,9 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
 
 	// Your code here.
-	// workerからタスク要求のRPCを受け取り、まだ割り振られていないmapタスク（ファイル名）を返す
-	// ファイル名を返したあと、10秒待ってもそのworkerからの応答がなければ別のworkerに同じタスクを割り振る
+	// workerからタスク要求のRPCを受け取り、まだ割り振られていないmapタスク（ファイル名）またはreduceタスク番号（0~nReduce-1）を返す
+	// mapタスクが全て完了するまでreduceタスクを割り当てられない
+	// タスクを割り当てたあと、10秒待ってもそのworkerからの応答がなければ別のworkerに同じタスクを割り振る
 
 	c.server()
 	return &c
