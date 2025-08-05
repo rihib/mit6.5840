@@ -12,31 +12,36 @@ import (
 )
 
 // Add your RPC definitions here.
-type TaskAssignArgs struct{}
+type TaskAssignArgs struct {
+	WorkerID string
+}
 
 type TaskAssignReply struct {
 	TaskType   string
-	inputFiles []string
+	InputFiles []string
 	TaskNum    int
-	nReduce    int
+	NReduce    int
 }
 
 type NewReduceTaskArgs struct {
+	WorkerID  string
 	TaskNames []string
 }
 
 type NewReduceTaskReply struct{}
 
 type ReduceTaskDoneArgs struct {
-	TaskNum int
+	WorkerID string
+	TaskNum  int
 }
 
 type ReduceTaskDoneReply struct{}
 
 type InvalidTaskArgs struct {
+	WorkerID string
 	TaskType string
 	TaskName string
-	taskNum  int
+	TaskNum  int
 }
 
 type InvalidTaskReply struct{}

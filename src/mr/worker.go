@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Map functions return a slice of KeyValue.
@@ -34,10 +36,11 @@ func Worker(
 	mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string,
 ) {
+	workerID := uuid.New().String()
 workerLoop:
 	for {
 		// Fetch task or exit worker
-		args, reply := TaskAssignArgs{}, TaskAssignReply{}
+		args, reply := TaskAssignArgs{workerID}, TaskAssignReply{}
 		if ok := call("Coordinator.TaskAssign", &args, &reply); !ok {
 			fmt.Printf("call failed!\n")
 			// If the worker fails to contact the coordinator,
@@ -46,9 +49,9 @@ workerLoop:
 			break
 		}
 		taskType := reply.TaskType
-		inputFiles := reply.inputFiles
+		inputFiles := reply.InputFiles
 		taskNum := reply.TaskNum
-		nReduce := reply.nReduce
+		nReduce := reply.NReduce
 		switch taskType {
 		case "map":
 			if len(inputFiles) != 1 {
@@ -56,12 +59,12 @@ workerLoop:
 				break workerLoop
 			}
 			taskName := inputFiles[0]
-			if err := doMap(mapf, taskName, taskNum, nReduce); err != nil {
+			if err := doMap(workerID, mapf, taskName, taskNum, nReduce); err != nil {
 				fmt.Printf("worker.map: %v", err)
 				break workerLoop
 			}
 		case "reduce":
-			if err := doReduce(reducef, inputFiles, taskNum); err != nil {
+			if err := doReduce(workerID, reducef, inputFiles, taskNum); err != nil {
 				fmt.Printf("worker.reduce: %v", err)
 				break workerLoop
 			}
@@ -79,6 +82,7 @@ workerLoop:
 }
 
 func doMap(
+	workerID string,
 	mapf func(string, string) []KeyValue,
 	filename string,
 	taskNum int,
@@ -88,7 +92,7 @@ func doMap(
 	file, err := os.Open(filename)
 	if err != nil {
 		fmt.Printf("cannot open %v", filename)
-		if err := handleInvalidTask("map", filename, taskNum); err != nil {
+		if err := handleInvalidTask(workerID, "map", filename, taskNum); err != nil {
 			return err
 		}
 		return err
@@ -97,7 +101,7 @@ func doMap(
 	content, err := io.ReadAll(file)
 	if err != nil {
 		fmt.Printf("cannot read %v", filename)
-		if err := handleInvalidTask("map", filename, taskNum); err != nil {
+		if err := handleInvalidTask(workerID, "map", filename, taskNum); err != nil {
 			return err
 		}
 		return err
@@ -135,7 +139,7 @@ func doMap(
 	// but since those tasks are reported to the coordinator
 	// as deterministically unexecutable,
 	// the coordinator will skip those tasks.
-	args, reply := NewReduceTaskArgs{reduceTasks}, NewReduceTaskReply{}
+	args, reply := NewReduceTaskArgs{workerID, reduceTasks}, NewReduceTaskReply{}
 	if ok := call("Coordinator.NewReduceTask", &args, &reply); !ok {
 		return fmt.Errorf("doMap: call failed")
 	}
@@ -143,6 +147,7 @@ func doMap(
 }
 
 func doReduce(
+	workerID string,
 	reducef func(string, []string) string,
 	inputFiles []string,
 	taskNum int,
@@ -182,7 +187,7 @@ func doReduce(
 		}
 		return err
 	}
-	args, reply := ReduceTaskDoneArgs{taskNum}, ReduceTaskDoneReply{}
+	args, reply := ReduceTaskDoneArgs{workerID, taskNum}, ReduceTaskDoneReply{}
 	if ok := call("Coordinator.ReduceTaskDone", &args, &reply); !ok {
 		return fmt.Errorf("doReduce: call failed")
 	}
@@ -212,9 +217,13 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 
 // If a task deterministically fails and cannot be executed,
 // notify the coordinator so that it can skip the task.
-func handleInvalidTask(taskType, taskName string, taskNum int) error {
+func handleInvalidTask(
+	workerID string,
+	taskType, taskName string,
+	taskNum int,
+) error {
 	var err error
-	args := InvalidTaskArgs{taskType, taskName, taskNum}
+	args := InvalidTaskArgs{workerID, taskType, taskName, taskNum}
 	reply := InvalidTaskReply{}
 	if ok := call("Coordinator.InvalidTask", &args, &reply); !ok {
 		fmt.Printf("call failed!\n")
