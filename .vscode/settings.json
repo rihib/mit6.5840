@@ -1,0 +1,17 @@
+{
+  "github.copilot.enable": {
+    "*": false,
+    "plaintext": false,
+    "scminput": false,
+    "go": false
+  },
+  "editor.wordWrap": "wordWrapColumn",
+  "editor.quickSuggestions": {
+    "other": "off"
+  },
+  "editor.suggestOnTriggerCharacters": false,
+  "github.copilot.nextEditSuggestions.fixes": false,
+  "github.copilot.renameSuggestions.triggerAutomatically": false,
+  "geminicodeassist.enable": false,
+  "geminicodeassist.inlineSuggestions.enableAuto": false,
+}
