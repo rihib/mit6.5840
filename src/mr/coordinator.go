@@ -11,6 +11,10 @@ import (
 type Coordinator struct {
 	// Your definitions here.
 
+	// TaskAssign
+	// NewReduceTask
+	// ReduceTaskDone
+	// InvalidTask
 }
 
 // create a Coordinator.
