@@ -38,7 +38,7 @@ workerLoop:
 	for {
 		// Fetch task or exit worker
 		args, reply := TaskAssignArgs{}, TaskAssignReply{}
-		if ok := call("Coordinator.Example", &args, &reply); !ok {
+		if ok := call("Coordinator.TaskAssign", &args, &reply); !ok {
 			fmt.Printf("call failed!\n")
 			// If the worker fails to contact the coordinator,
 			// it can assume that the coordinator has exited
