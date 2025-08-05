@@ -45,25 +45,31 @@ workerLoop:
 			// because the job is done, so the worker can terminate too.
 			break
 		}
-		taskType, taskName, taskNum, nReduce := reply.TaskType, reply.TaskName, reply.TaskNum, reply.nReduce
+		taskType := reply.TaskType
+		inputFiles := reply.inputFiles
+		taskNum := reply.TaskNum
+		nReduce := reply.nReduce
 		switch taskType {
 		case "map":
+			if len(inputFiles) != 1 {
+				fmt.Printf("worker.map: invalid inputFiles due to coordinator bug\n")
+				break workerLoop
+			}
+			taskName := inputFiles[0]
 			if err := doMap(mapf, taskName, taskNum, nReduce); err != nil {
 				fmt.Printf("worker.map: %v", err)
 				break workerLoop
 			}
 		case "reduce":
-			if err := doReduce(reducef, taskName, taskNum); err != nil {
+			if err := doReduce(reducef, inputFiles, taskNum); err != nil {
 				fmt.Printf("worker.reduce: %v", err)
 				break workerLoop
 			}
 		case "exit":
 			break workerLoop
 		default:
-			fmt.Printf("worker: invalid task name\n")
-			if err := handleInvalidTask(taskType, taskName, taskNum); err != nil {
-				break workerLoop
-			}
+			fmt.Printf("worker: invalid task name due to coordinator bug\n")
+			break workerLoop
 		}
 		time.Sleep(time.Second)
 	}
@@ -138,22 +144,26 @@ func doMap(
 
 func doReduce(
 	reducef func(string, []string) string,
-	taskName string,
+	inputFiles []string,
 	taskNum int,
 ) error {
-	file, err := os.Open(taskName)
-	if err != nil {
-		return err
-	}
 	var kva []KeyValue
-	dec := json.NewDecoder(file)
-	for {
-		var kv KeyValue
-		if err := dec.Decode(&kv); err != nil {
-			break
+	for _, inputFile := range inputFiles {
+		file, err := os.Open(inputFile)
+		if err != nil {
+			return err
 		}
-		kva = append(kva, kv)
+		dec := json.NewDecoder(file)
+		for {
+			var kv KeyValue
+			if err := dec.Decode(&kv); err != nil {
+				break
+			}
+			kva = append(kva, kv)
+		}
+		file.Close()
 	}
+
 	keyToValues := make(map[string][]string)
 	for _, kv := range kva {
 		keyToValues[kv.Key] = append(keyToValues[kv.Key], kv.Value)
@@ -167,12 +177,12 @@ func doReduce(
 	filename := "mr-out-" + strconv.Itoa(taskNum)
 	if err := atomicWriteFile(filename, koa, 0666, "text"); err != nil {
 		fmt.Printf("Error: %v\n", err)
-		if err := handleInvalidTask("reduce", taskName, taskNum); err != nil {
+		if err := handleInvalidTask("reduce", "", taskNum); err != nil {
 			return err
 		}
 		return err
 	}
-	args, reply := ReduceTaskDoneArgs{taskName, taskNum}, ReduceTaskDoneReply{}
+	args, reply := ReduceTaskDoneArgs{taskNum}, ReduceTaskDoneReply{}
 	if ok := call("Coordinator.ReduceTaskDone", &args, &reply); !ok {
 		return fmt.Errorf("doReduce: call failed")
 	}

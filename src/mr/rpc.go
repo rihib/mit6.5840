@@ -15,10 +15,10 @@ import (
 type TaskAssignArgs struct{}
 
 type TaskAssignReply struct {
-	TaskType string
-	TaskName string
-	TaskNum  int
-	nReduce  int
+	TaskType   string
+	inputFiles []string
+	TaskNum    int
+	nReduce    int
 }
 
 type NewReduceTaskArgs struct {
@@ -28,8 +28,7 @@ type NewReduceTaskArgs struct {
 type NewReduceTaskReply struct{}
 
 type ReduceTaskDoneArgs struct {
-	TaskName string
-	TaskNum  int
+	TaskNum int
 }
 
 type ReduceTaskDoneReply struct{}
