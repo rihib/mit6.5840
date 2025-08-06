@@ -25,6 +25,7 @@ type Coordinator struct {
 	mapTasksInfos    map[string]*taskInfo
 	reduceTasksInfos []*taskInfo
 	nReduce          int
+	completed        bool
 }
 
 // create a Coordinator.
@@ -36,6 +37,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 		mapTasksInfos:    make(map[string]*taskInfo, len(files)),
 		reduceTasksInfos: make([]*taskInfo, nReduce),
 		nReduce:          nReduce,
+		completed:        false,
 	}
 	for taskNum, taskName := range files {
 		c.mapTasksInfos[taskName] = &taskInfo{
@@ -163,6 +165,7 @@ func (c *Coordinator) TaskAssign(
 
 	// exit
 	reply.TaskType = "exit"
+	c.completed = true
 	return nil
 }
 
@@ -269,12 +272,9 @@ func (c *Coordinator) server() {
 // main/mrcoordinator.go calls Done() periodically to find out
 // if the entire job has finished.
 func (c *Coordinator) Done() bool {
-	ret := false
-
-	// Your code here.
-	// MapReduce ジョブが完全に終了したときに true を返す
-
-	return ret
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.completed
 }
 
 // an example RPC handler.

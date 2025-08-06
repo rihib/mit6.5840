@@ -32,7 +32,23 @@ brew install poppler
           ```
 
     - [x] Try to run `src/main/test-mr.sh`
-    - [ ] Implement `src/mr/*.go`
+    - [x] Implement `src/mr/*.go`
+    - [ ] Run `mrcoordinator.go` & `mrworker.go`
+      - How to run:
+
+        ```bash
+        cd src/main
+        go get github.com/google/uuid
+        go build -buildmode=plugin ../mrapps/wc.go
+        rm mr-out*
+        go run mrcoordinator.go pg-*.txt
+
+        # Open a new terminal
+        cd src/main
+        go run mrworker.go wc.so
+        cat mr-out-* | sort | more
+        ```
+
     - [ ] Run `mrcoordinator.go` & `mrworker.go` with `-race` flag
     - [ ] Run `src/main/test-mr.sh`
     - [ ] Implement backup task
