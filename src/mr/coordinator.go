@@ -110,6 +110,7 @@ func (c *Coordinator) TaskAssign(
 			taskInfo.status = "in-progress"
 			taskInfo.workerID = args.WorkerID
 			taskInfo.assignedAt = time.Now()
+			taskInfo.failureCount++
 			return nil
 		case "done":
 			continue
@@ -126,6 +127,7 @@ func (c *Coordinator) TaskAssign(
 	}
 
 	// reduce
+	isReduceFinished := true
 	for taskNum, taskInfo := range c.reduceTasksInfos {
 		if taskNum != taskInfo.num {
 			log.Fatal("expected taskNum = ", taskNum, ", but got = ", taskInfo.num)
@@ -146,6 +148,7 @@ func (c *Coordinator) TaskAssign(
 		case "in-progress":
 			now := time.Now()
 			if now.Sub(taskInfo.assignedAt) < 10*time.Second {
+				isReduceFinished = false
 				continue
 			}
 			currentWorkerID := taskInfo.workerID
@@ -162,12 +165,21 @@ func (c *Coordinator) TaskAssign(
 			taskInfo.status = "in-progress"
 			taskInfo.workerID = args.WorkerID
 			taskInfo.assignedAt = time.Now()
+			taskInfo.failureCount++
 			return nil
 		case "done":
 			continue
 		default:
 			log.Fatal("invalid task status: ", taskInfo.status)
 		}
+	}
+
+	// wait
+	// While there are remaining reduce tasks,
+	// keep all workers waiting in case a worker processing a task times out.
+	if !isReduceFinished {
+		reply.TaskType = "wait"
+		return nil
 	}
 
 	// exit
