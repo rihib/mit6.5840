@@ -55,8 +55,7 @@ workerLoop:
 		switch taskType {
 		case "map":
 			if len(inputFiles) != 1 {
-				fmt.Printf("worker.map: invalid inputFiles due to coordinator bug\n")
-				break workerLoop
+				log.Fatal("worker.map: invalid inputFiles")
 			}
 			taskName := inputFiles[0]
 			if err := doMap(workerID, mapf, taskName, taskNum, nReduce); err != nil {
@@ -68,11 +67,11 @@ workerLoop:
 				fmt.Printf("worker.reduce: %v", err)
 				break workerLoop
 			}
+		case "wait":
 		case "exit":
 			break workerLoop
 		default:
-			fmt.Printf("worker: invalid task name due to coordinator bug\n")
-			break workerLoop
+			log.Fatal("worker: invalid task name")
 		}
 		time.Sleep(time.Second)
 	}
@@ -84,15 +83,15 @@ workerLoop:
 func doMap(
 	workerID string,
 	mapf func(string, string) []KeyValue,
-	filename string,
+	taskName string,
 	taskNum int,
 	nReduce int,
 ) error {
 	// mapf
-	file, err := os.Open(filename)
+	file, err := os.Open(taskName)
 	if err != nil {
-		fmt.Printf("cannot open %v", filename)
-		if err := handleInvalidTask(workerID, "map", filename, taskNum); err != nil {
+		fmt.Printf("cannot open %v", taskName)
+		if err := handleInvalidTask(workerID, "map", taskName, taskNum); err != nil {
 			return err
 		}
 		return err
@@ -100,13 +99,13 @@ func doMap(
 	defer file.Close()
 	content, err := io.ReadAll(file)
 	if err != nil {
-		fmt.Printf("cannot read %v", filename)
-		if err := handleInvalidTask(workerID, "map", filename, taskNum); err != nil {
+		fmt.Printf("cannot read %v", taskName)
+		if err := handleInvalidTask(workerID, "map", taskName, taskNum); err != nil {
 			return err
 		}
 		return err
 	}
-	kva := mapf(filename, string(content))
+	kva := mapf(taskName, string(content))
 	sort.Sort(ByKey(kva))
 
 	// Create nReduce intermediate files
@@ -115,7 +114,7 @@ func doMap(
 		reduceTaskNum := ihash(kv.Key) % nReduce
 		intermediates[reduceTaskNum] = append(intermediates[reduceTaskNum], kv)
 	}
-	reduceTasks := make([]string, nReduce)
+	reduceInputFiles := make([]string, nReduce)
 	prefix := "mr-" + strconv.Itoa(taskNum)
 	for reduceTaskNum, intermediate := range intermediates {
 		// Intermediate filename should be mr-XY.
@@ -123,23 +122,23 @@ func doMap(
 		filename := prefix + strconv.Itoa(reduceTaskNum)
 		if _, err := os.Stat(filename); err == nil {
 			// File already exists, skip writing
-			reduceTasks[reduceTaskNum] = filename
+			reduceInputFiles[reduceTaskNum] = filename
 			continue
 		}
 		if err := atomicWriteFile(filename, intermediate, 0666, "json"); err != nil {
 			fmt.Printf("Error: %v\n", err)
-			if err := handleInvalidTask("map", filename, taskNum); err != nil {
+			if err := handleInvalidTask(workerID, "map", filename, taskNum); err != nil {
 				return err
 			}
 		} else {
-			reduceTasks[reduceTaskNum] = filename
+			reduceInputFiles[reduceTaskNum] = filename
 		}
 	}
 	// Some files may be sent to the coordinator in an empty state,
 	// but since those tasks are reported to the coordinator
 	// as deterministically unexecutable,
-	// the coordinator will skip those tasks.
-	args, reply := NewReduceTaskArgs{workerID, reduceTasks}, NewReduceTaskReply{}
+	// those tasks will be skipped in doReduce.
+	args, reply := NewReduceTaskArgs{workerID, taskName, reduceInputFiles}, NewReduceTaskReply{}
 	if ok := call("Coordinator.NewReduceTask", &args, &reply); !ok {
 		return fmt.Errorf("doMap: call failed")
 	}
@@ -154,6 +153,9 @@ func doReduce(
 ) error {
 	var kva []KeyValue
 	for _, inputFile := range inputFiles {
+		if inputFile == "" {
+			continue
+		}
 		file, err := os.Open(inputFile)
 		if err != nil {
 			return err
@@ -182,7 +184,7 @@ func doReduce(
 	filename := "mr-out-" + strconv.Itoa(taskNum)
 	if err := atomicWriteFile(filename, koa, 0666, "text"); err != nil {
 		fmt.Printf("Error: %v\n", err)
-		if err := handleInvalidTask("reduce", "", taskNum); err != nil {
+		if err := handleInvalidTask(workerID, "reduce", "", taskNum); err != nil {
 			return err
 		}
 		return err

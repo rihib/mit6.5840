@@ -24,8 +24,9 @@ type TaskAssignReply struct {
 }
 
 type NewReduceTaskArgs struct {
-	WorkerID  string
-	TaskNames []string
+	WorkerID         string
+	MapTaskName      string
+	ReduceInputFiles []string
 }
 
 type NewReduceTaskReply struct{}
