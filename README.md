@@ -39,21 +39,18 @@ brew install poppler
         ```bash
         cd src/main
         go get github.com/google/uuid
-        go build -buildmode=plugin ../mrapps/wc.go
         rm mr-out*
         go run mrcoordinator.go pg-*.txt
 
         # Open a new terminal
         cd src/main
+        go build -buildmode=plugin ../mrapps/wc.go
         go run mrworker.go wc.so
         cat mr-out-* | sort | more
         ```
 
-    - [ ] Run `mrcoordinator.go` & `mrworker.go` with `-race` flag
-    - [ ] Run `src/main/test-mr.sh`
-    - [ ] Implement backup task
-    - [ ] Run with `src/mrapps/crash.go`
-    - [ ] Run `src/main/test-mr-many.sh`
+    - [x] Run `mrcoordinator.go` & `mrworker.go` with `-race` flag
+    - [x] Run `src/main/test-mr.sh`
     - [ ] No-credit challenge exercises
       - [ ] Implement your own MapReduce application
       - [ ] Get your MapReduce coordinator and workers to run on separate machines
