@@ -7,16 +7,21 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"slices"
 	"sync"
 	"time"
 )
 
+// TODO: Assign backup tasks to active workers.
+// TODO: skip tasks that fail multiple times.
+
 type taskInfo struct {
-	status     string // "unassigned", "in-progress", "done"
-	inputFiles []string
-	num        int
-	workerID   string
-	assignedAt time.Time
+	status       string // "unassigned", "in-progress", "done"
+	inputFiles   []string
+	num          int
+	workerID     string
+	assignedAt   time.Time
+	failureCount int
 }
 
 type Coordinator struct {
@@ -41,15 +46,17 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	}
 	for taskNum, taskName := range files {
 		c.mapTasksInfos[taskName] = &taskInfo{
-			status:     "unassigned",
-			inputFiles: []string{taskName},
-			num:        taskNum,
+			status:       "unassigned",
+			inputFiles:   []string{taskName},
+			num:          taskNum,
+			failureCount: 0,
 		}
 	}
 	for taskNum := range nReduce {
 		c.reduceTasksInfos[taskNum] = &taskInfo{
-			status: "unassigned",
-			num:    taskNum,
+			status:       "unassigned",
+			num:          taskNum,
+			failureCount: 0,
 		}
 	}
 	c.server()
@@ -187,6 +194,10 @@ func (c *Coordinator) NewReduceTask(
 	if mapTaskInfo.workerID != args.WorkerID {
 		log.Fatal("expected workerID = ", mapTaskInfo.workerID, ", but got = ", args.WorkerID)
 	}
+	if slices.Contains(args.ReduceInputFiles, "") {
+		mapTaskInfo.status = "unassigned"
+		return nil
+	}
 	mapTaskInfo.status = "done"
 
 	// update reduce input files
@@ -219,9 +230,9 @@ func (c *Coordinator) ReduceTaskDone(
 	return nil
 }
 
-func (c *Coordinator) InvalidTask(
-	args *InvalidTaskArgs,
-	reply *InvalidTaskReply,
+func (c *Coordinator) FailureTask(
+	args *FailureTaskArgs,
+	reply *FailureTaskReply,
 ) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -238,7 +249,7 @@ func (c *Coordinator) InvalidTask(
 		if mapTaskInfo.workerID != args.WorkerID {
 			log.Fatal("expected workerID = ", mapTaskInfo.workerID, ", but got = ", args.WorkerID)
 		}
-		mapTaskInfo.status = "done"
+		mapTaskInfo.failureCount++
 	case "reduce":
 		if args.TaskNum < 0 || args.TaskNum >= len(c.reduceTasksInfos) {
 			log.Fatal("unknown reduceTaskNum: ", args.TaskNum)
@@ -247,7 +258,7 @@ func (c *Coordinator) InvalidTask(
 		if reduceTaskInfo.workerID != args.WorkerID {
 			log.Fatal("expected workerID = ", reduceTaskInfo.workerID, ", but got = ", args.WorkerID)
 		}
-		reduceTaskInfo.status = "done"
+		reduceTaskInfo.failureCount++
 	default:
 		fmt.Printf("invalid task type, %v", args.TaskType)
 		return fmt.Errorf("invalid task type, %v", args.TaskType)

@@ -38,14 +38,14 @@ type ReduceTaskDoneArgs struct {
 
 type ReduceTaskDoneReply struct{}
 
-type InvalidTaskArgs struct {
+type FailureTaskArgs struct {
 	WorkerID string
 	TaskType string
 	TaskName string
 	TaskNum  int
 }
 
-type InvalidTaskReply struct{}
+type FailureTaskReply struct{}
 
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.

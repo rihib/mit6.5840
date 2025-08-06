@@ -91,7 +91,7 @@ func doMap(
 	file, err := os.Open(taskName)
 	if err != nil {
 		fmt.Printf("cannot open %v", taskName)
-		if err := handleInvalidTask(workerID, "map", taskName, taskNum); err != nil {
+		if err := handleFailureTask(workerID, "map", taskName, taskNum); err != nil {
 			return err
 		}
 		return err
@@ -100,7 +100,7 @@ func doMap(
 	content, err := io.ReadAll(file)
 	if err != nil {
 		fmt.Printf("cannot read %v", taskName)
-		if err := handleInvalidTask(workerID, "map", taskName, taskNum); err != nil {
+		if err := handleFailureTask(workerID, "map", taskName, taskNum); err != nil {
 			return err
 		}
 		return err
@@ -127,17 +127,15 @@ func doMap(
 		}
 		if err := atomicWriteFile(filename, intermediate, 0666, "json"); err != nil {
 			fmt.Printf("Error: %v\n", err)
-			if err := handleInvalidTask(workerID, "map", filename, taskNum); err != nil {
+			if err := handleFailureTask(workerID, "map", filename, taskNum); err != nil {
 				return err
 			}
 		} else {
 			reduceInputFiles[reduceTaskNum] = filename
 		}
 	}
-	// Some files may be sent to the coordinator in an empty state,
-	// but since those tasks are reported to the coordinator
-	// as deterministically unexecutable,
-	// those tasks will be skipped in doReduce.
+	// Some files may be sent to the coordinator empty,
+	// but the coordinator will check them and reassign the task again.
 	args, reply := NewReduceTaskArgs{workerID, taskName, reduceInputFiles}, NewReduceTaskReply{}
 	if ok := call("Coordinator.NewReduceTask", &args, &reply); !ok {
 		return fmt.Errorf("doMap: call failed")
@@ -184,7 +182,7 @@ func doReduce(
 	filename := "mr-out-" + strconv.Itoa(taskNum)
 	if err := atomicWriteFile(filename, koa, 0666, "text"); err != nil {
 		fmt.Printf("Error: %v\n", err)
-		if err := handleInvalidTask(workerID, "reduce", "", taskNum); err != nil {
+		if err := handleFailureTask(workerID, "reduce", "", taskNum); err != nil {
 			return err
 		}
 		return err
@@ -217,17 +215,16 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 	return false
 }
 
-// If a task deterministically fails and cannot be executed,
-// notify the coordinator so that it can skip the task.
-func handleInvalidTask(
+// If a task fails, notify the coordinator.
+func handleFailureTask(
 	workerID string,
 	taskType, taskName string,
 	taskNum int,
 ) error {
 	var err error
-	args := InvalidTaskArgs{workerID, taskType, taskName, taskNum}
-	reply := InvalidTaskReply{}
-	if ok := call("Coordinator.InvalidTask", &args, &reply); !ok {
+	args := FailureTaskArgs{workerID, taskType, taskName, taskNum}
+	reply := FailureTaskReply{}
+	if ok := call("Coordinator.FailureTask", &args, &reply); !ok {
 		fmt.Printf("call failed!\n")
 		err = fmt.Errorf("call failed")
 	}

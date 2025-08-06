@@ -33,7 +33,7 @@ brew install poppler
 
     - [x] Try to run `src/main/test-mr.sh`
     - [x] Implement `src/mr/*.go`
-    - [ ] Run `mrcoordinator.go` & `mrworker.go`
+    - [x] Run `mrcoordinator.go` & `mrworker.go`
       - How to run:
 
         ```bash
