@@ -18,6 +18,7 @@
 ## 2 main approaches
 
 - State transfer
+  - これをPrimary backupと呼ぶこともあるらしい
   - プライマリが状態を変更したら、状態のチェックポイントを作り、バックアップに送信する
 - Replicate state machine (RSM)
   - State Machine Replication (SMR)とも呼ぶ
