@@ -11,7 +11,7 @@ bash setup.sh
 [6.5840 Schedule: Spring 2025](https://pdos.csail.mit.edu/6.824/schedule.html)<br>
 [Lab guidance](https://pdos.csail.mit.edu/6.824/labs/guidance.html)
 
-- [ ] Lecture 1: Introduction
+- [x] Lecture 1: Introduction
   - [x] [Lecture Note](lectures/01/l01.txt)
   - [x] [MapReduce: Simplified Data Processing on Large Clusters](lectures/01/mapreduce.pdf)
   - [x] [Video](https://youtu.be/WtZ7pcRSkOA?si=VU9nhFMlDNbbx08N)
@@ -24,13 +24,12 @@ bash setup.sh
   - [x] [Lecture Note](lectures/02/l-rpc.txt)
   - [x] [FAQ](lectures/02/tour-faq.txt)
   - [x] [Video](https://youtu.be/oZR76REwSyA?si=ujUaFr8AePOjSzWn)
-- [ ] Lecture 3: Primary-Backup Replication
+- [x] Lecture 3: Primary-Backup Replication
   - [x] [Lecture Note](lectures/03/l-vm-ft.txt)
   - [x] [FAQ](lectures/03/vm-ft-faq.txt)
   - [x] [The Design of a Practical System for Fault-Tolerant Virtual Machines](lectures/03/vm-ft.pdf)
   - [x] [Paper Questions](lectures/03/questions.md)
   - [x] [Video](https://youtu.be/gXiDmq1zDq4?si=vBWLws_WE0pgZZMF)
-  - [ ] [Lab 2: Key/Value Server](https://pdos.csail.mit.edu/6.824/labs/lab-kvsrv1.html)
 - [x] Lecture 4: Consistency and Linearizability
   - [x] [Lecture Note](lectures/04/l-linearizability.txt)
   - [x] [FAQ](lectures/04/linearizability-faq.txt)
