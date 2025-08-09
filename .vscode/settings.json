@@ -10,6 +10,7 @@
     "other": "off"
   },
   "editor.suggestOnTriggerCharacters": false,
+  "github.copilot.nextEditSuggestions.enabled": false,
   "github.copilot.nextEditSuggestions.fixes": false,
   "github.copilot.renameSuggestions.triggerAutomatically": false,
   "geminicodeassist.enable": false,

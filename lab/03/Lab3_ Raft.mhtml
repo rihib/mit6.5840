@@ -1,0 +1,820 @@
+From: <Saved by Blink>
+Snapshot-Content-Location: https://pdos.csail.mit.edu/6.824/labs/lab-raft1.html
+Subject: 6.5840 Lab 3: Raft
+Date: Sat, 9 Aug 2025 12:38:33 +0900
+MIME-Version: 1.0
+Content-Type: multipart/related;
+	type="text/html";
+	boundary="----MultipartBoundary--bTOCIfdqG71eJDiotlOgG00LSIMyq7eYhENQj3As3N----"
+
+
+------MultipartBoundary--bTOCIfdqG71eJDiotlOgG00LSIMyq7eYhENQj3As3N----
+Content-Type: text/html
+Content-ID: <frame-D1F88EB51BD17A5F5D98B8B32968B1B1@mhtml.blink>
+Content-Transfer-Encoding: quoted-printable
+Content-Location: https://pdos.csail.mit.edu/6.824/labs/lab-raft1.html
+
+<!DOCTYPE html><html><head><meta http-equiv=3D"Content-Type" content=3D"tex=
+t/html; charset=3Dwindows-1252">
+<link rel=3D"stylesheet" href=3D"https://pdos.csail.mit.edu/6.824/style.css=
+" type=3D"text/css">
+
+<title>6.5840 Lab 3: Raft</title>
+</head>
+<body>
+<div align=3D"center">
+<h2><a href=3D"https://pdos.csail.mit.edu/6.824/index.html">6.5840</a> - Sp=
+ring 2025</h2>
+<h1>6.5840 Lab 3: Raft</h1>
+
+
+<p>
+  <b><a href=3D"https://pdos.csail.mit.edu/6.824/labs/collab.html">Collabor=
+ation policy</a></b> //
+  <b><a href=3D"https://pdos.csail.mit.edu/6.824/labs/submit.html">Submit l=
+ab</a></b> //
+  <b><a href=3D"https://pdos.csail.mit.edu/6.824/labs/go.html">Setup Go</a>=
+</b> //
+  <b><a href=3D"https://pdos.csail.mit.edu/6.824/labs/guidance.html">Guidan=
+ce</a></b> //
+  <b><a href=3D"https://piazza.com/mit/spring2025/65840">Piazza</a></b>
+</p>
+
+</div>
+
+
+<hr>
+
+<h3>Introduction</h3>
+
+<p>
+This is the first in a series of labs in which you'll build a
+fault-tolerant key/value storage system. In this
+lab you'll implement Raft, a replicated state machine protocol.
+In the next lab you'll build a key/value service on top of
+Raft. Then you will =93shard=94 your service over
+multiple replicated state machines for higher performance.
+
+</p><p>
+A replicated service achieves fault
+tolerance by storing complete copies of its state (i.e., data)
+on multiple replica servers.
+Replication allows
+the service to continue operating even if some of
+its servers experience failures (crashes or a broken or flaky
+network). The challenge is that failures may cause the
+replicas to hold differing copies of the data.
+
+</p><p>
+Raft organizes client requests into a sequence, called
+the log, and ensures that all the replica servers see the same log.
+Each replica executes client requests
+in log order, applying them to its local copy of the service's state.
+Since all the live replicas
+see the same log contents, they all execute the same requests
+in the same order, and thus continue to have identical service
+state. If a server fails but later recovers, Raft takes care of
+bringing its log up to date. Raft will continue to operate as
+long as at least a majority of the servers are alive and can
+talk to each other. If there is no such majority, Raft will
+make no progress, but will pick up where it left off as soon as
+a majority can communicate again.
+
+</p><p>
+In this lab you'll implement Raft as a Go object type
+with associated methods, meant to be used as a module in a
+larger service. A set of Raft instances talk to each other with
+RPC to maintain replicated logs. Your Raft interface will
+support an indefinite sequence of numbered commands, also
+called log entries. The entries are numbered with <em>index
+numbers</em>. The log entry with a given index will eventually
+be committed. At that point, your Raft should send the log
+entry to the larger service for it to execute.
+
+</p><p>
+You should follow the design in the
+<a href=3D"https://pdos.csail.mit.edu/6.824/papers/raft-extended.pdf">exten=
+ded Raft paper</a>,
+with particular attention to Figure 2.
+You'll implement most of what's in the paper, including saving
+persistent state and reading it after a node fails and
+then restarts. You will not implement cluster
+membership changes (Section 6).
+
+</p><p>
+This lab is due in four parts. You must submit each part on the
+corresponding due date.
+
+</p><h3>Getting Started</h3>
+
+<div class=3D"important">
+<p>
+Do a <tt>git pull</tt> to get the latest lab software.
+</p></div>
+
+<p>
+If you have done Lab 1, you already have a copy of the lab
+source code.
+If not,
+you can find directions for obtaining the source via git
+in the <a href=3D"https://pdos.csail.mit.edu/6.824/labs/lab-mr.html">Lab 1 =
+instructions</a>.
+
+</p><p>
+We supply you with skeleton code <tt>src/raft/raft.go</tt>. We also
+supply a set of tests, which you should use to drive your
+implementation efforts, and which we'll use to grade your submitted
+lab. The tests are in <tt>src/raft/raft_test.go</tt>.
+
+</p><p>
+When we grade your submissions, we will run the tests without the <a href=
+=3D"https://go.dev/blog/race-detector"><tt>-race</tt> flag</a>.
+However, you should check that your code does not have races,
+by running
+the tests with the <tt>-race</tt> flag as you develop your solution.
+
+</p><p>
+To get up and running, execute the following commands.
+Don't forget the <tt>git pull</tt> to get the latest software.
+</p><pre>$ cd ~/6.5840
+$ git pull
+...
+$ cd src/raft1
+$ go test
+Test (3A): initial election (reliable network)...
+Fatal: expected one leader, got none
+--- FAIL: TestInitialElection3A (4.90s)
+Test (3A): election after network failure (reliable network)...
+Fatal: expected one leader, got none
+--- FAIL: TestReElection3A (5.05s)
+...
+$
+</pre>
+
+<h3>The code</h3>
+
+Implement Raft by adding code to
+<tt>raft/raft.go</tt>. In that file you'll find
+skeleton code, plus examples of how to send and receive
+RPCs.
+
+<p>
+Your implementation must support the following interface, which
+the tester and (eventually) your key/value server will use.
+You'll find more details in comments in <tt>raft.go</tt>.
+
+</p><pre>// create a new Raft server instance:
+rf :=3D Make(peers, me, persister, applyCh)
+
+// start agreement on a new log entry:
+rf.Start(command interface{}) (index, term, isleader)
+
+// ask a Raft for its current term, and whether it thinks it is leader
+rf.GetState() (term, isLeader)
+
+// each time a new entry is committed to the log, each Raft peer
+// should send an ApplyMsg to the service (or tester).
+type ApplyMsg</pre>
+
+<p>
+A service calls <tt>Make(peers,me,=85)</tt> to create a
+Raft peer. The peers argument is an array of network identifiers
+of the Raft peers (including this one), for use with RPC. The
+<tt>me</tt> argument is the index of this peer in the peers
+array. <tt>Start(command)</tt> asks Raft to start the processing
+to append the command to the replicated log. <tt>Start()</tt>
+should return immediately, without waiting for the log appends
+to complete. The service expects your implementation to send an
+<tt>ApplyMsg</tt> for each newly committed log entry to the
+<tt>applyCh</tt> channel argument to <tt>Make()</tt>.
+
+</p><p>
+<tt>raft.go</tt> contains example code that sends an RPC
+(<tt>sendRequestVote()</tt>) and that handles an incoming RPC
+(<tt>RequestVote()</tt>).
+Your Raft peers should exchange RPCs using the labrpc Go
+package (source in <tt>src/labrpc</tt>).
+The tester can tell <tt>labrpc</tt> to delay RPCs,
+re-order them, and discard them to simulate various network failures.
+While you can temporarily modify <tt>labrpc</tt>,
+make sure your Raft works with the original <tt>labrpc</tt>,
+since that's what we'll use to test and grade your lab.
+Your Raft instances must interact only with RPC; for example,
+they are not allowed to communicate using shared Go variables
+or files.
+
+</p><p>
+Subsequent labs build on this lab, so it is important to give
+yourself enough time to write solid code.
+
+</p><h3>Part 3A: leader election (<a class=3D"moderate" href=3D"https://pdo=
+s.csail.mit.edu/6.824/labs/guidance.html">moderate</a>)</h3>
+
+<p class=3D"todo">
+Implement Raft leader election and heartbeats (<tt>AppendEntries</tt> RPCs =
+with no
+log entries). The goal for Part 3A is for a
+single leader to be elected, for the leader to remain the leader
+if there are no failures, and for a new leader to take over if the
+old leader fails or if packets to/from the old leader are lost.
+Run <tt>go test -run 3A </tt> to test your 3A code.
+
+</p><ul class=3D"hints">
+
+<li>You can't easily run your Raft implementation directly; instead you sho=
+uld
+run it by way of the tester, i.e. <tt>go test -run 3A </tt>.
+
+</li><li>Follow the paper's Figure 2. At this point you care about sending
+and receiving RequestVote RPCs, the Rules for Servers that relate to
+elections, and the State related to leader election,
+
+</li><li>
+Add the Figure 2 state for leader election
+to the <tt>Raft</tt> struct in <tt>raft.go</tt>.
+You'll also need to define a
+struct to hold information about each log entry.
+
+</li><li>
+Fill in the <tt>RequestVoteArgs</tt> and
+<tt>RequestVoteReply</tt> structs. Modify
+<tt>Make()</tt> to create a background goroutine that will kick off leader
+ election periodically by sending out <tt>RequestVote</tt> RPCs when it has=
+n't
+ heard from another peer for a while.
+ Implement
+ the <tt>RequestVote()</tt> RPC handler so that servers will vote for one
+ another.
+
+
+</li><li>
+To implement heartbeats, define an
+<tt>AppendEntries</tt> RPC struct (though you may not
+need all the arguments yet), and have the leader send
+them out periodically. Write an
+<tt>AppendEntries</tt> RPC handler method.
+
+</li><li>
+The tester requires that the leader send heartbeat RPCs no more than
+ten times per second.
+
+</li><li>
+The tester requires your Raft to elect a new leader within five
+seconds of the failure of the old leader (if a majority of peers can
+still communicate).
+
+</li><li>
+The paper's Section 5.2 mentions election timeouts in the range of 150
+to 300 milliseconds. Such a range only makes sense if the leader
+sends heartbeats considerably more often than once per 150
+milliseconds (e.g., once per 10 milliseconds). Because the tester limits yo=
+u tens of heartbeats per
+second, you will have to use an election timeout larger
+than the paper's 150 to 300 milliseconds, but not too large, because then y=
+ou
+may fail to elect a leader within five seconds.
+
+</li><li>
+You may find Go's
+<a href=3D"https://golang.org/pkg/math/rand/">rand</a>
+useful.
+
+</li><li>
+You'll need to write code that takes actions periodically or
+after delays in time. The easiest way to do this is to create
+a goroutine with a loop that calls
+<a href=3D"https://golang.org/pkg/time/#Sleep">time.Sleep()</a>;
+see the <tt>ticker()</tt> goroutine that <tt>Make()</tt>
+creates for this purpose.
+Don't use Go's <tt>time.Timer</tt> or <tt>time.Ticker</tt>, which
+are difficult to use correctly.
+
+</li><li>
+If your code has trouble passing the tests,
+read the paper's Figure 2 again; the full logic for leader
+election is spread over multiple parts of the figure.
+
+</li><li>
+Don't forget to implement <tt>GetState()</tt>.
+
+</li><li>
+The tester calls your Raft's <tt>rf.Kill()</tt> when it is
+permanently shutting down an instance. You can check whether
+<tt>Kill()</tt> has been called using <tt>rf.killed()</tt>.
+You may want to do this in all loops, to avoid having
+dead Raft instances print confusing messages.
+
+
+</li><li>Go RPC sends only struct fields whose names start with capital let=
+ters.
+  Sub-structures must also have capitalized field names (e.g. fields of log=
+ records
+  in an array). The <tt>labgob</tt> package will warn you about this;
+  don't ignore the warnings.
+
+</li><li>
+The most challenging part of this lab may be the debugging. Spend some
+time making your implementation easy to debug. Refer to
+the <a href=3D"https://pdos.csail.mit.edu/6.824/labs/guidance.html">Guidanc=
+e</a> page for debugging tips.
+
+</li><li>
+If you fail a test, the tester produces a file that visualizes a timeline w=
+ith
+events marked along it, including network partitions, crashed servers, and
+checks performed. Here's an <a href=3D"https://pdos.csail.mit.edu/6.824/lab=
+s/vis.html">example of the
+visualization</a>. Further, you can add your own annotations by writing, fo=
+r
+example,
+<tt>tester.Annotate("Server 0", "short description", "details")</tt>. This =
+is a
+new feature we added this year, so if you have any feedback regarding the
+visualizer (e.g., bug reports, what annotation APIs that you think might be
+helpful, what information you want the visualizer to show, etc.), please le=
+t us
+know!
+
+</li></ul>
+
+
+<p>
+Be sure you pass the 3A tests before submitting Part 3A, so that
+you see something like this:
+
+</p><pre>$ go test -run 3A
+Test (3A): initial election (reliable network)...
+  ... Passed --   3.6  3   106    0
+Test (3A): election after network failure (reliable network)...
+  ... Passed --   7.6  3   304    0
+Test (3A): multiple elections (reliable network)...
+  ... Passed --   8.4  7   954    0
+PASS
+ok      6.5840/raft1    19.834sak
+$
+</pre>
+
+<p>
+Each "Passed" line contains five numbers; these are the time that the
+test took in seconds, the number of Raft peers, the
+number of RPCs sent during the test, the total number of bytes in the
+RPC messages, and the number of log entries
+that Raft reports were committed. Your numbers will differ from those
+shown here. You can ignore the numbers if you like, but they may help
+you sanity-check the number of RPCs that your implementation sends.
+For all of labs 3, 4, and 5, the grading script will fail your
+solution if it takes more than 600 seconds for all of the tests
+(<tt>go test</tt>), or if any individual test takes more than 120
+seconds.
+
+</p><p>
+When we grade your submissions, we will run the tests without the <a href=
+=3D"https://go.dev/blog/race-detector"><tt>-race</tt> flag</a>. However, yo=
+u should make sure that your code
+consistently passes the tests with the <tt>-race</tt> flag.
+
+</p><h3>Part 3B: log (<a class=3D"hard" href=3D"https://pdos.csail.mit.edu/=
+6.824/labs/guidance.html">hard</a>)</h3>
+
+<p class=3D"todo">
+Implement the leader and follower code to append new log entries,
+so that the <tt>go test -run 3B </tt> tests pass.
+
+</p><ul class=3D"hints">
+
+<li>
+Run <tt>git pull</tt> to get the latest lab software.
+
+</li><li>
+Raft log is 1-indexed, but we suggest that you view it as 0-indexed, and
+starting out with an entry (at index=3D0) that has term 0. That allows the =
+very
+first AppendEntries RPC to contain 0 as PrevLogIndex, and be a valid index =
+into
+the log.
+
+</li><li>
+Your first goal should be to pass <tt>TestBasicAgree3B()</tt>.
+Start by implementing <tt>Start()</tt>, then write the code
+to send and receive new log entries via <tt>AppendEntries</tt> RPCs,
+following Figure 2. Send each newly committed entry
+on <tt>applyCh</tt> on each peer.
+
+</li><li>
+You will need to implement the election
+restriction (section 5.4.1 in the paper).
+
+</li><li>
+Your code may have loops that repeatedly check for certain events.
+Don't have these loops
+execute continuously without pausing, since that
+will slow your implementation enough that it fails tests.
+Use Go's
+<a href=3D"https://golang.org/pkg/sync/#Cond">condition variables</a>,
+or insert a
+<tt>time.Sleep(10 * time.Millisecond)</tt> in each loop iteration.
+
+</li><li>Do yourself a favor for future labs and write (or re-write) code
+that's clean and clear.  For ideas, re-visit our
+the <a href=3D"https://pdos.csail.mit.edu/6.824/labs/guidance.html">Guidanc=
+e page</a> with tips on how to
+  develop and debug your code.
+
+</li><li>If you fail a test, look at
+  <tt>raft_test.go</tt> and trace the test code from there to
+  understand what's being tested.
+
+</li></ul>
+
+<p>
+The tests for upcoming labs may fail your code if it runs too slowly.
+You can check how much real time and CPU time your solution uses with
+the time command. Here's typical output:
+
+</p><pre>$ time go test -run 3B
+Test (3B): basic agreement (reliable network)...
+  ... Passed --   1.3  3    18    0
+Test (3B): RPC byte count (reliable network)...
+  ... Passed --   2.8  3    56    0
+Test (3B): test progressive failure of followers (reliable network)...
+  ... Passed --   5.3  3   188    0
+Test (3B): test failure of leaders (reliable network)...
+  ... Passed --   6.4  3   378    0
+Test (3B): agreement after follower reconnects (reliable network)...
+  ... Passed --   5.9  3   176    0
+Test (3B): no agreement if too many followers disconnect (reliable network)=
+...
+  ... Passed --   4.3  5   288    0
+Test (3B): concurrent Start()s (reliable network)...
+  ... Passed --   1.5  3    32    0
+Test (3B): rejoin of partitioned leader (reliable network)...
+  ... Passed --   5.3  3   216    0
+Test (3B): leader backs up quickly over incorrect follower logs (reliable n=
+etwork)...
+  ... Passed --  12.1  5  1528    0
+Test (3B): RPC counts aren't too high (reliable network)...
+  ... Passed --   3.1  3   106    0
+PASS
+ok      6.5840/raft1    48.353s
+go test -run 3B  1.37s user 0.74s system 4% cpu 48.865 total
+$
+</pre>
+
+The "ok 6.5840/raft 35.557s" means that Go measured the time taken for the =
+3B
+tests to be 35.557 seconds of real (wall-clock) time. The "user
+0m2.556s" means that the code consumed 2.556 seconds of CPU time, or
+time spent actually executing instructions (rather than waiting or
+sleeping). If your solution uses much more than a minute of real time
+for the 3B tests, or much more than 5 seconds of CPU time, you may run
+into trouble later on. Look for time spent sleeping or waiting for RPC
+timeouts, loops that run without sleeping or waiting for conditions or
+channel messages, or large numbers of RPCs sent.
+
+<h3>Part 3C: persistence (<a class=3D"hard" href=3D"https://pdos.csail.mit.=
+edu/6.824/labs/guidance.html">hard</a>)</h3>
+
+<p>
+If a Raft-based server reboots it should resume service
+where it left off. This requires
+that Raft keep persistent state that survives a reboot. The
+paper's Figure 2 mentions which state should be persistent.
+
+</p><p>
+A real implementation would write
+Raft's persistent state to disk each time it changed, and would read the
+state from
+disk when restarting after a reboot. Your implementation won't use
+the disk; instead, it will save and restore persistent state
+from a <tt>Persister</tt> object (see <tt>persister.go</tt>).
+Whoever calls <tt>Raft.Make()</tt> supplies a <tt>Persister</tt>
+that initially holds Raft's most recently persisted state (if
+any). Raft should initialize its state from that
+<tt>Persister</tt>, and should use it to save its persistent
+state each time the state changes. Use the <tt>Persister</tt>'s
+<tt>ReadRaftState()</tt> and <tt>Save()</tt> methods.
+
+</p><p class=3D"todo">
+Complete the functions
+<tt>persist()</tt>
+and
+<tt>readPersist()</tt> in <tt>raft.go</tt>
+by adding code to save and restore persistent state. You will need to encod=
+e
+(or "serialize") the state as an array of bytes in order to pass it to
+the <tt>Persister</tt>. Use the <tt>labgob</tt> encoder;
+see the comments in <tt>persist()</tt> and <tt>readPersist()</tt>.
+<tt>labgob</tt> is like Go's <tt>gob</tt> encoder but
+prints error messages if
+you try to encode structures with lower-case field names.
+For now, pass <tt>nil</tt> as the second argument to <tt>persister.Save()</=
+tt>.
+Insert calls to <tt>persist()</tt> at the points where
+your implementation changes persistent state.
+Once you've done this,
+and if the rest of your implementation is correct,
+you should pass all of the 3C tests.
+
+</p><p>
+You will probably need the optimization that backs up
+nextIndex by more than one entry
+at a time. Look at the <a href=3D"https://pdos.csail.mit.edu/6.824/papers/r=
+aft-extended.pdf">extended Raft paper</a> starting at
+the bottom of page 7 and top of page 8 (marked by a gray line).
+The paper is vague about the details; you will need to fill in the gaps.
+One possibility is to have a rejection message include:
+
+</p><pre>    XTerm:  term in the conflicting entry (if any)
+    XIndex: index of first entry with that term (if any)
+    XLen:   log length
+</pre>
+
+Then the leader's logic can be something like:
+
+<pre>  Case 1: leader doesn't have XTerm:
+    nextIndex =3D XIndex
+  Case 2: leader has XTerm:
+    nextIndex =3D (index of leader's last entry for XTerm) + 1
+  Case 3: follower's log is too short:
+    nextIndex =3D XLen
+</pre>
+
+A few other hints:
+
+<ul class=3D"hints">
+
+<li>
+Run <tt>git pull</tt> to get the latest lab software.
+
+</li><li>
+The 3C tests are more demanding than those for 3A or 3B, and failures
+may be caused by problems in your code for 3A or 3B.
+
+</li></ul>
+
+<p>
+Your code should pass all the 3C tests (as shown below), as well as
+the 3A and 3B tests.
+
+</p><pre>$ go test -run 3C
+Test (3C): basic persistence (reliable network)...
+  ... Passed --   6.6  3   110    0
+Test (3C): more persistence (reliable network)...
+  ... Passed --  15.6  5   428    0
+Test (3C): partitioned leader and one follower crash, leader restarts (reli=
+able network)...
+  ... Passed --   3.1  3    50    0
+Test (3C): Figure 8 (reliable network)...
+  ... Passed --  33.7  5   654    0
+Test (3C): unreliable agreement (unreliable network)...
+  ... Passed --   2.1  5  1076    0
+Test (3C): Figure 8 (unreliable) (unreliable network)...
+  ... Passed --  31.9  5  4400    0
+Test (3C): churn (reliable network)...
+  ... Passed --  16.8  5  4896    0
+Test (3C): unreliable churn (unreliable network)...
+  ... Passed --  16.1  5  7204    0
+PASS
+ok      6.5840/raft1    126.054s
+$
+</pre>
+
+<p>It is a good idea to run the tests multiple times before
+  submitting and check that each run prints <tt>PASS</tt>.
+</p><pre>$ for i in {0..10}; do go test; done
+</pre>
+
+
+<h3>Part 3D: log compaction (<a class=3D"hard" href=3D"https://pdos.csail.m=
+it.edu/6.824/labs/guidance.html">hard</a>)</h3>
+
+<p>
+As things stand now, a rebooting server replays the
+complete Raft log in order to restore its state. However, it's not
+practical for a long-running service to remember the complete Raft log
+forever. Instead, you'll modify Raft to cooperate with services that
+persistently store a "snapshot" of their state from time to time, at
+which point Raft discards log entries that precede the snapshot. The
+result is a smaller amount of persistent data and faster restart.
+However, it's now possible for a follower to fall so far behind that
+the leader has discarded the log entries it needs to catch up; the
+leader must then send a snapshot plus the log starting at the time of
+the snapshot. Section 7 of the
+<a href=3D"https://pdos.csail.mit.edu/6.824/papers/raft-extended.pdf">exten=
+ded Raft paper</a>
+outlines the scheme; you will have to design the details.
+
+</p><p>
+Your Raft must provide the following function that the service
+can call with a serialized snapshot of its state:
+
+</p><p><tt>Snapshot(index int, snapshot []byte)</tt>
+
+</p><p>
+In Lab 3D, the tester calls <tt>Snapshot()</tt> periodically. In Lab 4, you=
+ will
+write a key/value server that calls <tt>Snapshot()</tt>; the snapshot
+will contain the complete table of key/value pairs.
+The service layer calls <tt>Snapshot()</tt> on every peer (not
+just on the leader).
+
+</p><p>The <tt>index</tt> argument indicates the highest log entry that's
+reflected in the snapshot. Raft should discard its log entries before
+that point. You'll need to revise your Raft code to operate while
+storing only the tail of the log.
+
+</p><p>
+You'll need to implement the <tt>InstallSnapshot</tt> RPC discussed in
+the paper that allows a Raft leader to tell a lagging Raft peer to
+replace its state with a snapshot. You will likely need to think
+through how InstallSnapshot should interact with the state and rules
+in Figure 2.
+
+</p><p>
+When a follower's Raft code receives an InstallSnapshot RPC, it can
+use the <tt>applyCh</tt> to send the snapshot to the service in
+an <tt>ApplyMsg</tt>. The <tt>ApplyMsg</tt> struct definition already
+contains the fields you will need (and which the tester expects). Take
+care that these snapshots only advance the service's state, and don't
+cause it to move backwards.
+
+</p><p>
+If a server crashes, it must restart from persisted data. Your Raft
+should persist both Raft state and the corresponding snapshot.
+Use the second argument to
+<tt>persister.Save()</tt> to save the snapshot.
+If there's no snapshot, pass <tt>nil</tt> as the second
+argument.
+
+</p><p>
+When a server restarts, the application layer reads the persisted
+snapshot and restores its saved state.
+
+</p><p class=3D"todo">
+Implement <tt>Snapshot()</tt> and the InstallSnapshot RPC, as well as the
+changes to Raft to support these (e.g, operation with a
+trimmed log).  Your solution is complete when it passes the 3D tests
+(and all the previous Lab 3 tests).
+</p>
+
+<ul class=3D"hints">
+
+<li> <tt>git pull</tt> to make sure you have the latest software.
+
+</li><li> A good place to start is to modify your code to so that it is
+able to store just the part of the log
+starting at some index X. Initially you can set X to zero and
+run the 3B/3C tests.
+Then make <tt>Snapshot(index)</tt> discard the log before <tt>index</tt>,
+and set X equal to <tt>index</tt>. If all goes well you should
+now pass the first 3D test.
+
+</li><li>
+A common reason for failing the first 3D test is that followers take too lo=
+ng to
+catch up to the leader.
+
+</li><li>Next: have the leader send an InstallSnapshot RPC if it doesn't
+have the log entries required to bring a follower up to date.
+
+</li><li>Send the entire snapshot in a single InstallSnapshot RPC.
+Don't implement Figure 13's <tt>offset</tt> mechanism for
+splitting up the snapshot.
+
+</li><li> Raft must discard old log entries in a way that allows the Go gar=
+bage collector to free and re-use the
+memory; this requires that there be no reachable references (pointers)
+to the discarded log entries.
+
+</li><li>
+A reasonable amount of time to consume for the full set of
+Lab 3 tests (3A+3B+3C+3D) without <tt>-race</tt> is 6 minutes of real time =
+and one
+minute of CPU time. When running with <tt>-race</tt>, it is about 10 minute=
+s of real
+time and two minutes of CPU time.
+
+</li></ul>
+
+<p>
+Your code should pass all the 3D tests (as shown below), as well as the 3A,=
+ 3B, and 3C tests.
+
+</p><pre>$ go test -run 3D
+Test (3D): snapshots basic (reliable network)...
+  ... Passed --   3.3  3   522    0
+Test (3D): install snapshots (disconnect) (reliable network)...
+  ... Passed --  48.4  3  2710    0
+Test (3D): install snapshots (disconnect) (unreliable network)...
+  ... Passed --  56.1  3  3025    0
+Test (3D): install snapshots (crash) (reliable network)...
+  ... Passed --  33.3  3  1559    0
+Test (3D): install snapshots (crash) (unreliable network)...
+  ... Passed --  38.1  3  1723    0
+Test (3D): crash and restart all servers (unreliable network)...
+  ... Passed --  11.2  3   296    0
+Test (3D): snapshot initialization after crash (unreliable network)...
+  ... Passed --   4.3  3    84    0
+PASS
+ok      6.5840/raft1    195.006s
+</pre>
+
+
+
+
+
+
+
+
+
+
+
+
+<browser-mcp-container data-wxt-shadow-root=3D""><template shadowmode=3D"op=
+en"><html><head><meta http-equiv=3D"Content-Type" content=3D"text/html; cha=
+rset=3Dwindows-1252"></head><body><div></div></body></html></template></bro=
+wser-mcp-container></body></html><!--  LocalWords:  transactional RPC snaps=
+hotting Paxos Viewstamped --><!--  LocalWords:  Bolosky et al else's github=
+ src labrpc cd ok RPCs --><!--  LocalWords:  TestInitialElection TestReElec=
+tion rf persister --><!--  LocalWords:  applyCh isleader GetState isLeader =
+rpc --><!--  LocalWords:  ApplyMsg Persister's ReadRaftState --><!--  Local=
+Words:  readPersist sendRequestVote RequestVote struct --><!--  LocalWords:=
+  RequestVoteArgs RequestVoteReply structs goroutine --><!--  LocalWords:  =
+AppendEntries AppendEntry TestBasicAgree --><!--  LocalWords:  InstallSnaps=
+hot -->
+------MultipartBoundary--bTOCIfdqG71eJDiotlOgG00LSIMyq7eYhENQj3As3N----
+Content-Type: text/css
+Content-Transfer-Encoding: quoted-printable
+Content-Location: https://pdos.csail.mit.edu/6.824/style.css
+
+@charset "windows-1252";
+
+body { max-width: 45em; }
+
+body pre { overflow-x: auto; }
+
+body { color: black; background-color: white; font-family: sans-serif; }
+
+.title { text-align: center; }
+
+.subtitle { text-align: center; font-style: italic; }
+
+.author { text-align: center; }
+
+ul.hints, .note, .challenge, .todo, pre { margin: 1em; border: 1px dashed; =
+padding: 1em; }
+
+ul.hints { color: rgb(80, 160, 45); }
+
+ul.hints li { margin-left: 1em; }
+
+ul.hints li::before { content: "Hint: "; font-weight: bold; }
+
+.important { margin: 1em; padding: 1em; background-color: rgb(153, 0, 0); c=
+olor: rgb(255, 255, 255); }
+
+.important::before { content: "Important: "; background-color: rgb(85, 0, 0=
+); width: 100%; display: block; margin: -1em -1em 1em; padding: 1em; font-w=
+eight: bold; }
+
+.note { color: rgb(70, 130, 180); }
+
+.note::before { content: "Note: "; font-weight: bold; }
+
+.challenge, .todo { border-style: solid; }
+
+.challenge::before, .todo::before { float: right; font-weight: bold; color:=
+ white; margin: -1em -1em 0.5em 1em; padding: 0.5em 1em; }
+
+.todo { color: rgb(178, 34, 34); }
+
+.todo::before { content: "TASK"; background: rgb(178, 34, 34); }
+
+.challenge { color: rgb(139, 69, 19); }
+
+.challenge::before { content: "CHALLENGE"; background: rgb(139, 69, 19); }
+
+tt, code { font-family: monospace; border-radius: 3px; font-size: 110%; col=
+or: rgb(101, 123, 131); background-color: rgb(253, 246, 227); padding: 0px =
+0.2em; overflow-wrap: break-word; }
+
+pre { font-size: 100%; color: rgb(131, 148, 150); background: rgb(0, 43, 54=
+); }
+
+.classic { color: black; }
+
+div.required .header { font-weight: bold; }
+
+div.challenge .header { font-style: italic; }
+
+div.required { background-color: rgb(238, 238, 255); }
+
+.easy { color: rgb(0, 204, 0); }
+
+.moderate { color: rgb(0, 102, 255); }
+
+.hard { color: rgb(255, 51, 0); }
+
+.center { display: block; margin-left: auto; margin-right: auto; width: 50%=
+; }
+------MultipartBoundary--bTOCIfdqG71eJDiotlOgG00LSIMyq7eYhENQj3As3N------

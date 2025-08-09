@@ -3,57 +3,18 @@
 ## Setup
 
 ```bash
-brew install poppler
+bash setup.sh
 ```
 
 ## Lectures
 
-[6.5840 Schedule: Spring 2025](https://pdos.csail.mit.edu/6.824/schedule.html)
+[6.5840 Schedule: Spring 2025](https://pdos.csail.mit.edu/6.824/schedule.html)<br>
 [Lab guidance](https://pdos.csail.mit.edu/6.824/labs/guidance.html)
 
 - [ ] Lecture 1: Introduction
   - [x] [Lecture Note](lectures/01/l01.txt)
   - [x] [MapReduce: Simplified Data Processing on Large Clusters](lectures/01/mapreduce.pdf)
   - [x] [Video](https://youtu.be/WtZ7pcRSkOA?si=VU9nhFMlDNbbx08N)
-  - [ ] [Lab1: MapReduce](https://pdos.csail.mit.edu/6.824/labs/lab-mr.html)
-    - [x] Run & Read `src/main/mrsequential.go`
-    - [x] Read `src/mrapps/wc.go`
-    - [x] Read & Run `src/main/mrcoordinator.go` & `src/main/mrworker.go` & `src/mr/*.go`
-      - How to run:
-        1. Uncomment `CallExample()` in `src/mr/worker.go`
-        2. Run below:
-
-          ```bash
-          go run mrcoordinator.go pg-*.txt
-
-          # Open a new terminal
-          go build -buildmode=plugin ../mrapps/wc.go
-          go run mrworker.go wc.so
-          ```
-
-    - [x] Try to run `src/main/test-mr.sh`
-    - [x] Implement `src/mr/*.go`
-    - [x] Run `mrcoordinator.go` & `mrworker.go`
-      - How to run:
-
-        ```bash
-        cd src/main
-        go get github.com/google/uuid
-        rm mr-out*
-        go run mrcoordinator.go pg-*.txt
-
-        # Open a new terminal
-        cd src/main
-        go build -buildmode=plugin ../mrapps/wc.go
-        go run mrworker.go wc.so
-        cat mr-out-* | sort | more
-        ```
-
-    - [x] Run `mrcoordinator.go` & `mrworker.go` with `-race` flag
-    - [x] Run `src/main/test-mr.sh`
-    - [ ] No-credit challenge exercises
-      - [ ] Implement your own MapReduce application
-      - [ ] Get your MapReduce coordinator and workers to run on separate machines
 - [x] Lecture 2: RPC and Threads
   - [x] [A Tour of Go Concurrency](https://go.dev/tour/concurrency/1)
   - [x] [Question](lectures/02/question.md) & Read `crawler.go`
@@ -75,3 +36,53 @@ brew install poppler
   - [x] [FAQ](lectures/04/linearizability-faq.txt)
   - [x] [Testing Distributed Systems for Linearizability](https://anishathalye.com/testing-distributed-systems-for-linearizability/)
   - [x] [Paper Questions](lectures/04/questions.md)
+- [ ] Lecture 5: Fault Tolerance: Raft (1)
+  - [ ] [Lecture Note](lectures/05/l-raft.txt)
+  - [ ] [FAQ](lectures/05/raft-faq.txt)
+  - [ ] [In Search of an Understandable Consensus Algorithm (Extended Version)](lectures/05/raft-extended.pdf)
+  - [ ] [Paper Questions](lectures/05/question.md)
+  - [ ] [Video](https://youtu.be/R2-9bsKmEbo?si=IOUuOmZ1oiktitKt)
+
+## Lab
+
+- [ ] [Lab 1: MapReduce](https://pdos.csail.mit.edu/6.824/labs/lab-mr.html)
+  - [x] Run & Read `src/main/mrsequential.go`
+  - [x] Read `src/mrapps/wc.go`
+  - [x] Read & Run `src/main/mrcoordinator.go` & `src/main/mrworker.go` & `src/mr/*.go`
+    - How to run:
+      1. Uncomment `CallExample()` in `src/mr/worker.go`
+      2. Run below:
+
+        ```bash
+        go run mrcoordinator.go pg-*.txt
+
+        # Open a new terminal
+        go build -buildmode=plugin ../mrapps/wc.go
+        go run mrworker.go wc.so
+        ```
+
+  - [x] Try to run `src/main/test-mr.sh`
+  - [x] Implement `src/mr/*.go`
+  - [x] Run `mrcoordinator.go` & `mrworker.go`
+    - How to run:
+
+      ```bash
+      cd src/main
+      go get github.com/google/uuid
+      rm mr-out*
+      go run mrcoordinator.go pg-*.txt
+
+      # Open a new terminal
+      cd src/main
+      go build -buildmode=plugin ../mrapps/wc.go
+      go run mrworker.go wc.so
+      cat mr-out-* | sort | more
+      ```
+
+  - [x] Run `mrcoordinator.go` & `mrworker.go` with `-race` flag
+  - [x] Run `src/main/test-mr.sh`
+  - [ ] No-credit challenge exercises
+    - [ ] Implement your own MapReduce application
+    - [ ] Get your MapReduce coordinator and workers to run on separate machines
+- [ ] [Lab 2: Key/Value server](https://pdos.csail.mit.edu/6.824/labs/lab-kvsrv1.html)
+- [ ] [Lab 3: Raft](https://pdos.csail.mit.edu/6.824/labs/lab-raft1.html)

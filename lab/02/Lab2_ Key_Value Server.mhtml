@@ -1,0 +1,515 @@
+From: <Saved by Blink>
+Snapshot-Content-Location: https://pdos.csail.mit.edu/6.824/labs/lab-kvsrv1.html
+Subject: 6.5840 Lab 2: Key/Value Server
+Date: Mon, 4 Aug 2025 17:00:45 +0900
+MIME-Version: 1.0
+Content-Type: multipart/related;
+	type="text/html";
+	boundary="----MultipartBoundary--FKv1pciLDb8pQdej4Zz9V9AhKcKMv7yYrvIYHSkjYl----"
+
+
+------MultipartBoundary--FKv1pciLDb8pQdej4Zz9V9AhKcKMv7yYrvIYHSkjYl----
+Content-Type: text/html
+Content-ID: <frame-961313F2B2B0754D5457596A1E367AFA@mhtml.blink>
+Content-Transfer-Encoding: quoted-printable
+Content-Location: https://pdos.csail.mit.edu/6.824/labs/lab-kvsrv1.html
+
+<!DOCTYPE html><html><head><meta http-equiv=3D"Content-Type" content=3D"tex=
+t/html; charset=3Dwindows-1252">
+<link rel=3D"stylesheet" href=3D"https://pdos.csail.mit.edu/6.824/style.css=
+" type=3D"text/css">
+ =20
+<title>6.5840 Lab 2: Key/Value Server</title>
+</head>
+<body>
+<div align=3D"center">
+<h2><a href=3D"https://pdos.csail.mit.edu/6.824/index.html">6.5840</a> - Sp=
+ring 2025</h2>
+<h1>6.5840 Lab 2: Key/Value Server</h1>
+
+<p>
+  <b><a href=3D"https://pdos.csail.mit.edu/6.824/labs/collab.html">Collabor=
+ation policy</a></b> //
+  <b><a href=3D"https://pdos.csail.mit.edu/6.824/labs/submit.html">Submit l=
+ab</a></b> //
+  <b><a href=3D"https://pdos.csail.mit.edu/6.824/labs/go.html">Setup Go</a>=
+</b> //
+  <b><a href=3D"https://pdos.csail.mit.edu/6.824/labs/guidance.html">Guidan=
+ce</a></b> //
+  <b><a href=3D"https://piazza.com/mit/spring2025/65840">Piazza</a></b>
+</p>
+
+</div>
+
+<hr>
+
+<h3>Introduction</h3>
+
+<p>
+In this lab you will build a key/value server for a single machine
+that ensures that each Put operation is executed <i>at-most-once</i>
+despite network failures and that the operations
+are <i>linearizable</i>. You will use this KV server to implement a
+lock. Later labs will replicate a server like this one to handle
+server crashes.
+
+</p><h3>KV server</h3>
+
+<p>
+Each client interacts with the key/value server using a <i>Clerk</i>, which
+sends RPCs to the server.
+Clients can send two different RPCs to the server:
+<tt>Put(key, value, version)</tt> and <tt>Get(key)</tt>. The server
+maintains an in-memory map that records for each key a (value,
+version) tuple.  Keys and values are strings. The version number
+records the number of times the key has been written.
+
+<tt>Put(key, value, version)</tt> installs or replaces the value for a
+particular key in the map <i>only if</i> the <tt>Put</tt>'s version number
+matches the server's version number for the key.  If the version
+numbers match, the server also increments the version number of the
+key.  If the version numbers don't match, the server should
+return <tt>rpc.ErrVersion</tt>. A client can create a new key by invoking <=
+tt>Put</tt> with
+version number 0 (and the resulting version stored by the server
+will be 1).  If the version number of the <tt>Put</tt> is larger than 0
+and the key doesn't exist, the server should return <tt>rpc.ErrNoKey</tt>.
+
+</p><p><tt>Get(key)</tt> fetches the current value for the key and its asso=
+ciated
+version.  If the key doesn't exist at the server, the server should
+return <tt>rpc.ErrNoKey</tt>.
+
+</p><p>Maintaining a version number for each key will be useful for
+implementing locks using <tt>Put</tt> and ensuring
+at-most-once semantics for <tt>Put</tt>'s when the network is
+unreliable and the client retransmits.
+
+</p><p>
+When you've finished this lab and passed all the tests, you'll
+have a <i>linearizable</i> key/value service from the point
+of view of clients calling
+<tt>Clerk.Get</tt> and <tt>Clerk.Put</tt>.
+That is,
+if client operations aren't concurrent, each
+client <tt>Clerk.Get</tt> and <tt>Clerk.Put</tt> will observe the
+modifications to the state implied by the preceding sequence of
+operations. For concurrent operations, the return values and final state wi=
+ll be
+the same as if the operations had executed one at a time in some
+order. Operations are concurrent if they overlap in time: for example, if
+client X calls <tt>Clerk.Put()</tt>, and client Y
+calls <tt>Clerk.Put()</tt>, and then client X's call returns. An operation
+must observe the effects of all operations that have completed before the
+operation starts.  See the FAQ
+on <a href=3D"https://pdos.csail.mit.edu/6.824/papers/linearizability-faq.t=
+xt">linearizability</a> for
+more background.
+
+</p><p>Linearizability is convenient for applications because it's the
+behavior you'd see from a single server that processes requests one at
+a time. For example, if one client gets a successful response from the
+server for an update request, subsequently launched reads from other
+clients are guaranteed to see the effects of that update. Providing
+linearizability is relatively easy for a single server.
+
+</p><h3>Getting Started</h3>
+
+<p>
+We supply you with skeleton code and tests in <tt>src/kvsrv1</tt>.
+<tt>kvsrv1/client.go</tt> implements a Clerk that clients use
+to manage RPC interactions with the server; the Clerk provides
+<tt>Put</tt> and <tt>Get</tt> methods.
+<tt>kvsrv1/server.go</tt> contains the server code,
+including the <tt>Put</tt> and <tt>Get</tt> handlers that
+implement the server side of RPC requests.
+You will need to modify <tt>client.go</tt> and <tt>server.go</tt>.
+The RPC requests, replies, and
+error values are defined in
+the <tt>kvsrv1/rpc</tt> package in the file <tt>kvsrv1/rpc/rpc.go</tt>,
+which you should look at, though
+you don't have to modify <tt>rpc.go</tt>.
+
+</p><p>
+To get up and running, execute the following commands.
+Don't forget the <tt>git pull</tt> to get the latest software.
+</p><pre>$ cd ~/6.5840
+$ git pull
+...
+$ cd src/kvsrv1
+$ go test -v
+=3D=3D=3D RUN   TestReliablePut
+One client and reliable Put (reliable network)...
+    kvsrv_test.go:25: Put err ErrNoKey
+...
+$</pre>
+
+<h3>Key/value server with reliable network (<a class=3D"easy" href=3D"https=
+://pdos.csail.mit.edu/6.824/labs/guidance.html">easy</a>)</h3>
+
+<div class=3D"todo">
+<p>
+Your first task is to implement a solution that works when there are
+no dropped messages.
+You'll need to add RPC-sending code to the Clerk Put/Get
+methods in <tt>client.go</tt>, and implement
+<tt>Put</tt> and <tt>Get</tt> RPC handlers in
+<tt>server.go</tt>.
+
+</p><p>
+You have completed this task when you
+pass the Reliable tests in the
+test suite:
+
+</p></div>
+
+
+<pre>$ go test -v -run Reliable
+=3D=3D=3D RUN   TestReliablePut
+One client and reliable Put (reliable network)...
+  ... Passed --   0.0  1     5    0
+--- PASS: TestReliablePut (0.00s)
+=3D=3D=3D RUN   TestPutConcurrentReliable
+Test: many clients racing to put values to the same key (reliable network).=
+..
+info: linearizability check timed out, assuming history is ok
+  ... Passed --   3.1  1 90171 90171
+--- PASS: TestPutConcurrentReliable (3.07s)
+=3D=3D=3D RUN   TestMemPutManyClientsReliable
+Test: memory use many put clients (reliable network)...
+  ... Passed --   9.2  1 100000    0
+--- PASS: TestMemPutManyClientsReliable (16.59s)
+PASS
+ok  	6.5840/kvsrv1	19.681s
+</pre>
+<p>
+The numbers after each <tt>Passed</tt> are real time in seconds,
+the constant 1,
+the number of RPCs sent (including client RPCs), and the number of key/valu=
+e
+operations executed (<tt>Clerk</tt> <tt>Get</tt> and <tt>Put</tt> calls).
+
+</p><ul class=3D"hints">
+
+<li>
+Check that your code is race-free using
+<tt>go test -race</tt>.
+
+</li></ul>
+
+<h3>Implementing a lock using key/value clerk (<a class=3D"moderate" href=
+=3D"https://pdos.csail.mit.edu/6.824/labs/guidance.html">moderate</a>)</h3>
+
+<p>In many distributed applications, clients running on different
+  machines use a key/value server to coordinate their activities.  For
+  example, ZooKeeper and Etcd allow clients to coordinate using a
+  distributed lock, in analogy with how threads in a Go program can
+  coordinate with locks (i.e., <tt>sync.Mutex</tt>).  Zookeeper and Etcd
+  implement such a lock with conditional put.
+     =20
+</p><p>In this exercise your task is to implement a lock layered on
+client
+<tt>Clerk.Put</tt> and <tt>Clerk.Get</tt> calls.  The lock supports two
+methods: <tt>Acquire</tt> and <tt>Release</tt>. The lock's specification is=
+ that
+only one client can successfully acquire the lock at a time;
+other clients
+must wait until the first client has released the lock
+using <tt>Release</tt>.
+
+</p><p>We supply you with skeleton code and tests
+in <tt>src/kvsrv1/lock/</tt>. You will need to
+modify <tt>src/kvsrv1/lock/lock.go</tt>.
+Your <tt>Acquire</tt> and <tt>Release</tt> code can talk
+to your key/value server by calling <tt>lk.ck.Put()</tt>
+and <tt>lk.ck.Get()</tt>.
+
+</p><p>If a client crashes while holding a lock,
+the lock will never be released.
+In a design more sophisticated than this lab,
+the client would attach a
+<a href=3D"https://en.wikipedia.org/wiki/Lease_(computer_science)#:~:text=
+=3DLeases%20are%20commonly%20used%20in,to%20rely%20on%20the%20resource.">le=
+ase</a>
+to a lock.  When the lease expires, the lock server would release the lock =
+on
+behalf of the client.  In this lab clients don't crash and you
+can ignore this problem.
+
+</p><div class=3D"todo">
+<p>
+Implement <tt>Acquire</tt> and <tt>Release</tt>.
+You have completed this exercise when your
+code passes the Reliable tests in the test suite in the lock sub-directory:
+</p></div>
+
+<pre>$ cd lock
+$ go test -v -run Reliable
+=3D=3D=3D RUN   TestOneClientReliable
+Test: 1 lock clients (reliable network)...
+  ... Passed --   2.0  1   974    0
+--- PASS: TestOneClientReliable (2.01s)
+=3D=3D=3D RUN   TestManyClientsReliable
+Test: 10 lock clients (reliable network)...
+  ... Passed --   2.1  1 83194    0
+--- PASS: TestManyClientsReliable (2.11s)
+PASS
+ok  	6.5840/kvsrv1/lock	4.120s
+</pre>
+
+<p>If you haven't implemented the lock yet,
+  the first test will succeed.
+ =20
+</p><p>This exercise requires little code but will require a bit more
+  independent thought than the previous exercise.
+ =20
+  </p><ul class=3D"hints">
+
+    <li> You will need a unique identifier for each lock client;
+      call <tt>kvtest.RandValue(8)</tt> to generate a random string.
+
+	</li><li> The lock service should use a specific key to store the "lock st=
+ate"
+	(you would have to decide precisely what the lock state is). The key to be
+	used is passed through the parameter <tt>l</tt> of <tt>MakeLock</tt>
+	in <tt>src/kvsrv1/lock/lock.go</tt>.
+</li></ul>
+
+<h3>Key/value server with dropped messages (<a class=3D"moderate" href=3D"h=
+ttps://pdos.csail.mit.edu/6.824/labs/guidance.html">moderate</a>)</h3>
+
+<p>The main challenge in this exercise is that the network may re-order,
+delay, or discard RPC requests and/or replies.  To recover from
+discarded requests/replies, the Clerk must keep re-trying each RPC
+until it receives a reply from the server.
+
+</p><p>
+If the network discards an RPC request message, then the
+client re-sending
+the request will solve the problem: the server will receive and
+execute just the re-sent request.
+
+</p><p>
+However, the network might instead discard an RPC reply message.
+The client does not know which message was discarded; the client only
+observes that it received no reply.
+If it was the reply that was discarded, and the client re-sends
+the RPC request, then the server will receive two copies of
+the request.
+That's OK for a <tt>Get</tt>,
+since <tt>Get</tt> doesn't modify the server state.
+It is safe to resend a <tt>Put</tt> RPC with the
+same version number, since the server executes <tt>Put</tt>
+conditionally on the version number; if the server received and
+executed a
+<tt>Put</tt> RPC, it will respond to a re-transmitted
+copy of that RPC with <tt>rpc.ErrVersion</tt> rather than
+executing the Put a second time.
+
+</p><p>A tricky case is if the server replies with
+  an <tt>rpc.ErrVersion</tt> in a response to an RPC that the Clerk
+  retried.  In this case, the Clerk cannot know if the
+  Clerk's <tt>Put</tt> was executed by the server or not: the first
+  RPC might have been executed by the server but the network may have
+  discarded the successful response from the server, so that the server
+  sent <tt>rpc.ErrVersion</tt> only for the retransmitted RPC.
+  Or, it might be that another
+  Clerk updated the key before the Clerk's first RPC arrived at the server,
+  so that the server executed neither of the Clerk's RPCs and replied
+  <tt>rpc.ErrVersion</tt> to both.
+  Therefore, if a Clerk receives <tt>rpc.ErrVersion</tt> for a
+  retransmitted Put RPC,
+  <tt>Clerk.Put</tt> must return <tt>rpc.ErrMaybe</tt> to the
+  application instead of <tt>rpc.ErrVersion</tt> since the request may
+  have been executed.  It is then up to the application to handle this
+  case.
+ If the server responds to an initial (not retransmitted)
+ Put RPC with <tt>rpc.ErrVersion</tt>, then the Clerk
+should return <tt>rpc.ErrVersion</tt> to the application, since the RPC
+was definitely not executed by the server.
+
+</p><p>It would be more convenient for application developers if <tt>Put</t=
+t>'s were
+  exactly-once (i.e., no <tt>rpc.ErrMaybe</tt> errors) but that is
+  difficult to guarantee without maintaining state at the server for
+  each Clerk.
+  In the last exercise of this lab, you will
+  implement a lock using your Clerk to explore how to
+  program with at-most-once <tt>Clerk.Put</tt>.
+
+</p><p>Now you should modify your <tt>kvsrv1/client.go</tt>
+to continue in the face of dropped
+RPC requests and replies.
+A return value of <tt>true</tt> from
+the client's <tt>ck.clnt.Call()</tt>
+indicates that the client
+received an RPC reply from the
+server; a return value of <tt>false</tt> indicates that it
+did not receive a reply (more precisely, <tt>Call()</tt> waits
+for a reply message for a timeout interval, and returns false
+if no reply arrives within that time).
+Your
+<tt>Clerk</tt> should keep re-sending an RPC until it receives
+a reply.
+Keep in mind the discussion of <tt>rpc.ErrMaybe</tt> above.
+Your solution shouldn't require
+any changes to the server.
+
+</p><div class=3D"todo">
+<p> Add code to <tt>Clerk</tt> to retry if doesn't receive a reply.
+Your have completed this task if your code passes all tests
+in <tt>kvsrv1/</tt>, like this:
+</p></div>
+
+<pre>$ go test -v
+=3D=3D=3D RUN   TestReliablePut
+One client and reliable Put (reliable network)...
+  ... Passed --   0.0  1     5    0
+--- PASS: TestReliablePut (0.00s)
+=3D=3D=3D RUN   TestPutConcurrentReliable
+Test: many clients racing to put values to the same key (reliable network).=
+..
+info: linearizability check timed out, assuming history is ok
+  ... Passed --   3.1  1 106647 106647
+--- PASS: TestPutConcurrentReliable (3.09s)
+=3D=3D=3D RUN   TestMemPutManyClientsReliable
+Test: memory use many put clients (reliable network)...
+  ... Passed --   8.0  1 100000    0
+--- PASS: TestMemPutManyClientsReliable (14.61s)
+=3D=3D=3D RUN   TestUnreliableNet
+One client (unreliable network)...
+  ... Passed --   7.6  1   251  208
+--- PASS: TestUnreliableNet (7.60s)
+PASS
+ok  	6.5840/kvsrv1	25.319s
+</pre>
+
+<ul class=3D"hints">
+ =20
+  <li> Before the client retries, it should wait a little bit; you can
+    use go's <tt>time</tt> package and call <tt>time.Sleep(100 *
+    time.Millisecond)</tt>
+ =20
+</li></ul>
+
+<h3>Implementing a lock using key/value clerk and unreliable
+network (<a class=3D"easy" href=3D"https://pdos.csail.mit.edu/6.824/labs/gu=
+idance.html">easy</a>)</h3>
+
+<div class=3D"todo">
+ =20
+<p>Modify your lock implementation to
+work correctly with your modified key/value client
+when the network is not reliable.
+You
+have completed this exercise when your code passes all the <tt>kvsrv1/lock/=
+</tt>
+tests, including the unreliable ones:
+</p></div>
+
+<pre>$ cd lock
+$ go test -v
+=3D=3D=3D RUN   TestOneClientReliable
+Test: 1 lock clients (reliable network)...
+  ... Passed --   2.0  1   968    0
+--- PASS: TestOneClientReliable (2.01s)
+=3D=3D=3D RUN   TestManyClientsReliable
+Test: 10 lock clients (reliable network)...
+  ... Passed --   2.1  1 10789    0
+--- PASS: TestManyClientsReliable (2.12s)
+=3D=3D=3D RUN   TestOneClientUnreliable
+Test: 1 lock clients (unreliable network)...
+  ... Passed --   2.3  1    70    0
+--- PASS: TestOneClientUnreliable (2.27s)
+=3D=3D=3D RUN   TestManyClientsUnreliable
+Test: 10 lock clients (unreliable network)...
+  ... Passed --   3.6  1   908    0
+--- PASS: TestManyClientsUnreliable (3.62s)
+PASS
+ok  	6.5840/kvsrv1/lock	10.033s
+</pre>
+
+
+
+
+
+<browser-mcp-container data-wxt-shadow-root=3D""><template shadowmode=3D"op=
+en"><html><head><meta http-equiv=3D"Content-Type" content=3D"text/html; cha=
+rset=3Dwindows-1252"></head><body><div></div></body></html></template></bro=
+wser-mcp-container></body></html>
+------MultipartBoundary--FKv1pciLDb8pQdej4Zz9V9AhKcKMv7yYrvIYHSkjYl----
+Content-Type: text/css
+Content-Transfer-Encoding: quoted-printable
+Content-Location: https://pdos.csail.mit.edu/6.824/style.css
+
+@charset "windows-1252";
+
+body { max-width: 45em; }
+
+body pre { overflow-x: auto; }
+
+body { color: black; background-color: white; font-family: sans-serif; }
+
+.title { text-align: center; }
+
+.subtitle { text-align: center; font-style: italic; }
+
+.author { text-align: center; }
+
+ul.hints, .note, .challenge, .todo, pre { margin: 1em; border: 1px dashed; =
+padding: 1em; }
+
+ul.hints { color: rgb(80, 160, 45); }
+
+ul.hints li { margin-left: 1em; }
+
+ul.hints li::before { content: "Hint: "; font-weight: bold; }
+
+.important { margin: 1em; padding: 1em; background-color: rgb(153, 0, 0); c=
+olor: rgb(255, 255, 255); }
+
+.important::before { content: "Important: "; background-color: rgb(85, 0, 0=
+); width: 100%; display: block; margin: -1em -1em 1em; padding: 1em; font-w=
+eight: bold; }
+
+.note { color: rgb(70, 130, 180); }
+
+.note::before { content: "Note: "; font-weight: bold; }
+
+.challenge, .todo { border-style: solid; }
+
+.challenge::before, .todo::before { float: right; font-weight: bold; color:=
+ white; margin: -1em -1em 0.5em 1em; padding: 0.5em 1em; }
+
+.todo { color: rgb(178, 34, 34); }
+
+.todo::before { content: "TASK"; background: rgb(178, 34, 34); }
+
+.challenge { color: rgb(139, 69, 19); }
+
+.challenge::before { content: "CHALLENGE"; background: rgb(139, 69, 19); }
+
+tt, code { font-family: monospace; border-radius: 3px; font-size: 110%; col=
+or: rgb(101, 123, 131); background-color: rgb(253, 246, 227); padding: 0px =
+0.2em; overflow-wrap: break-word; }
+
+pre { font-size: 100%; color: rgb(131, 148, 150); background: rgb(0, 43, 54=
+); }
+
+.classic { color: black; }
+
+div.required .header { font-weight: bold; }
+
+div.challenge .header { font-style: italic; }
+
+div.required { background-color: rgb(238, 238, 255); }
+
+.easy { color: rgb(0, 204, 0); }
+
+.moderate { color: rgb(0, 102, 255); }
+
+.hard { color: rgb(255, 51, 0); }
+
+.center { display: block; margin-left: auto; margin-right: auto; width: 50%=
+; }
+------MultipartBoundary--FKv1pciLDb8pQdej4Zz9V9AhKcKMv7yYrvIYHSkjYl------
