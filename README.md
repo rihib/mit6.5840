@@ -36,11 +36,18 @@ bash setup.sh
   - [x] [Testing Distributed Systems for Linearizability](https://anishathalye.com/testing-distributed-systems-for-linearizability/)
   - [x] [Paper Questions](lectures/04/questions.md)
 - [ ] Lecture 5: Fault Tolerance: Raft (1)
-  - [ ] [Lecture Note](lectures/05/l-raft.txt)
-  - [ ] [FAQ](lectures/05/raft-faq.txt)
+  - [x] [Lecture Note](lectures/05/l-raft.txt)
+  - [x] [FAQ](lectures/05/raft-faq.txt)
   - [ ] [In Search of an Understandable Consensus Algorithm (Extended Version)](lectures/05/raft-extended.pdf)
   - [ ] [Paper Questions](lectures/05/question.md)
   - [ ] [Video](https://youtu.be/R2-9bsKmEbo?si=IOUuOmZ1oiktitKt)
+  - [ ] Other Resources
+    - [ ] [The Raft Consensus Algorithm](https://raft.github.io/)
+    - [ ] [Why the "Raft" name?](https://groups.google.com/g/raft-dev/c/95rZqptGpmU)
+    - [ ] [Raft does not Guarantee Liveness in the face of Network Faults](https://decentralizedthoughts.github.io/2020-12-12-raft-liveness-full-omission/)
+    - [ ] [Paxos Made Simple](https://css.csail.mit.edu/6.824/2014/papers/paxos-simple.pdf)
+    - [ ] [On the Parallels between Paxos and Raft, and how to Port Optimizations](https://dl.acm.org/doi/10.1145/3293611.3331595)
+    - [ ] [Introduction to etcd v3](https://youtu.be/hQigKX0MxPw?si=rjGBNW5DxYJLob9N)
 
 ## Lab
 
