@@ -38,9 +38,9 @@ bash setup.sh
 - [ ] Lecture 5: Fault Tolerance: Raft (1)
   - [x] [Lecture Note](lectures/05/l-raft.txt)
   - [x] [FAQ](lectures/05/raft-faq.txt)
-  - [ ] [In Search of an Understandable Consensus Algorithm (Extended Version)](lectures/05/raft-extended.pdf)
-  - [ ] [Paper Questions](lectures/05/question.md)
-  - [ ] [Video](https://youtu.be/R2-9bsKmEbo?si=IOUuOmZ1oiktitKt)
+  - [x] [In Search of an Understandable Consensus Algorithm (Extended Version)](lectures/05/raft-extended.pdf)
+  - [x] [Paper Questions](lectures/05/question.md)
+  - [x] [Video](https://youtu.be/R2-9bsKmEbo?si=IOUuOmZ1oiktitKt)
   - [ ] Other Resources
     - [ ] [The Raft Consensus Algorithm](https://raft.github.io/)
     - [ ] [Why the "Raft" name?](https://groups.google.com/g/raft-dev/c/95rZqptGpmU)
