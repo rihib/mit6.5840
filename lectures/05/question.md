@@ -7,3 +7,14 @@ The paper positions itself as a better Paxos, but another way to look at Raft is
 These real-world protocols are complex, and (before Raft) there was not a good introductory paper describing how they work. The Raft paper, in contrast, is relatively easy to read and fairly detailed.
 
 Question: Suppose we have the scenario shown in the Raft paper's Figure 7: a cluster of seven servers, with the log contents shown. The first server crashes (the one at the top of the figure), and cannot be contacted. A leader election ensues. For each of the servers marked (a), (d), and (f), could that server be elected? If yes, which servers would vote for it? If no, what specific Raft mechanism(s) would prevent it from being elected?
+
+![Figure 7](images/figure-7.png)
+
+Answer:
+
+- a: yes
+- b: no
+- c: yes
+- d: yes
+- e: no
+- f: no
